@@ -3,8 +3,10 @@
 
 #include<Stegosaurus_IO.h>
 
-
 int estimateGaussian(char *features);
-int init_gpu();
+
+extern "C" {  
+  int init_gpu();
+}
 
 #endif /* STEGOSAURUS_ESTIMATE */

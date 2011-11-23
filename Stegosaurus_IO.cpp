@@ -4,13 +4,15 @@ FeatureSet* openFeatureSet(char *path){
   int dim;
   double *vec;
   FILE *file = fopen(path, "r");
-  FeatureSet *set = malloc(sizeof(FeatureSet));
+  FeatureSet *set = (FeatureSet*) malloc(sizeof(FeatureSet));
   
   dim = fread(&dim, sizeof(int), 1, file);
-  vec = malloc(dim*sizeof(double));
+  vec = (double*) malloc(dim*sizeof(double));
   set->dim = dim;
   set->file = file;
   set->current_feature = vec;
+  
+  printf("opened feature set: dim=%i \n", dim);
   
   return set;
 }
