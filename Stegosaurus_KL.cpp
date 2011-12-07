@@ -1,2 +1,2 @@
-#include<Stegosaurus_KL.h>
+#include<Stegosaurus.h>
 
