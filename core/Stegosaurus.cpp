@@ -1,7 +1,7 @@
 #include "Stegosaurus.h"
 
 
-void pathConcat(char* a, char* b, char *result) {
+void pathConcat(const char* a, const char* b, char* result) {
   int i;
   int count;
   
@@ -18,7 +18,7 @@ void pathConcat(char* a, char* b, char *result) {
 }
 
 
-FeatureCollection::FeatureCollection(char* path) {
+FeatureCollection::FeatureCollection(const char* path) {
   int i;
 //   int numsets = 0;
   char *str = (char*) malloc(512*sizeof(char));
@@ -47,13 +47,18 @@ FeatureCollection::FeatureCollection(char* path) {
     if (strstr(entry->d_name, ".fv") != NULL) {
 //       printf("%s \n", entry->d_name);
       pathConcat(path, entry->d_name, str);
-//       printf(" %s \n", str);
-      collection[i] = openFeatureSet(str);
-      collection[i]->name = (char*) malloc(strlen(entry->d_name)*sizeof(char));
-      strcpy(collection[i]->name, entry->d_name);
+      printf(" %s \n", str);
+      if (i == 0) {
+	collection[i] = openFeatureSet(str);
+	collection[i]->name = (char*) malloc(strlen(entry->d_name)*sizeof(char));
+	strcpy(collection[i]->name, entry->d_name);
+      } else {
+	addFeatureFile(collection[0], str);
+      }
       i++;
     }
   }
+  num_sets = 1; // needs to be done properly
 //   printf("%i sets, collection[0]->M = %i \n", num_sets, collection[0]->M);
   closedir(root);
   rewind();
@@ -93,6 +98,14 @@ int FeatureCollection::getCurrentSet() {
   return current_set;
 }
 
+featureSet* FeatureCollection::getFeatureSet(int index) {
+  return collection[index];
+}
+
+void FeatureCollection::setSelected(int index) {
+  selected = index;
+}
+
 
 featureSet* FeatureCollection::nextFeatureSet() {
   return collection[current_set++];
@@ -118,16 +131,28 @@ StegoModel::~StegoModel() {
 }
 
 void StegoModel::estimateMus() {
-  while (fcol->hasNext()) {
-    steg->features = fcol->nextFeatureSet();
-    fcol->setSelected();
+  int i;
+  
+//   while (fcol->hasNext()) {
+//   printf("estimate mus, %i \n", fcol->getNumSets());
+  for (i = 0; i < fcol->getNumSets(); i++) {
+//     steg->features = fcol->nextFeatureSet();
+    steg->features = fcol->getFeatureSet(i);
+//     printf("set steg->features \n");
+    fcol->setSelected(i);
+//     printf("set selected correctly \n");
     estimateMu(steg);
+    progressChanged(((double) i)/(double) fcol->getNumSets());
     progressChanged(((double) fcol->getCurrentSet())/(double) fcol->getNumSets());
   }
   estimateSigma(steg);
-  fcol->rewind();
+  progressChanged(0.99);
+  qrHouseholder(steg);
+//   qrUnitTest();
+//   fcol->rewind();
   modelChanged();
   progressChanged(0.);
+//   printf("done. \n");
 }
 
 
@@ -160,7 +185,7 @@ void StegoModel::progressChanged(double p) {
   }
 }
 
-void StegoModel::openCollection(char* path) {
+void StegoModel::openCollection(const char* path) {
   if (fcol != NULL) delete fcol;
 //   printf("opening collection \n");
 //   if (fcol == 0) printf("features is NULL \n");
@@ -206,7 +231,12 @@ FeatureCollection* StegoModel::getCollection() {
 double* StegoModel::getSigma() {
     if (steg->features == NULL) 
     return NULL;
-  return steg->features->gauss->sigma;
+  return steg->features->gauss->qr;
 }
 
+double* StegoModel::getDiag() {
+    if (steg->features == NULL) 
+    return NULL;
+  return steg->features->gauss->qr_diag;
+}
 

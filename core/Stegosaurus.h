@@ -45,7 +45,7 @@
 #define BLOCKS(x,tbp) ((x)+(tbp)-1)/(tpb)
 
 const int QP_RANGE = 8;
-
+const int MAX_FILES = 20;
 
 typedef struct myGaussian {
   int dim;
@@ -60,7 +60,9 @@ typedef struct featureSet {
   int dim;
   int M;
   int gpu_matrix_width;                      // max number of matrix column in gpu memory
-  FILE *file;
+  int num_files;
+  int current_file;
+  FILE **files;
   char *name;
 //   double *current_feature;                   // created using cudaHostAlloc (important!) 
   double *max_vec;                           // vector of maximum entries
@@ -79,8 +81,23 @@ typedef struct featureSet {
 
 typedef struct gpuContext {
   int threads_per_block;
+//   int qr_cache;
+  int num_streams;
   cublasHandle_t handle;
 } gpuContext;
+
+typedef struct klContext {
+  int dim;
+  int nstr;
+//   double *currentq_g;   // gpu
+//   double *diag_g;
+//   double *qr_g;
+  cudaStream_t *streams;
+  double **tmp_g;
+  double **vec_g;
+  double **dotp_g;
+  cublasHandle_t *handle;
+} klContext;
 
 typedef struct stegoContext {
   gpuContext *gpu_c;                         // might contain multiple cublas handles later (or multiple gpucontexts, we will see...)
@@ -99,14 +116,16 @@ public:
 
 class FeatureCollection {
 public:
-  FeatureCollection(char *path);
+  FeatureCollection(const char *path);
   ~FeatureCollection();
   
   void rewind();
   void setSelected();
+  void setSelected(int index);
   int isSelected();
   int getNumSets();
   int getCurrentSet();
+  featureSet* getFeatureSet(int index);
   featureSet* nextFeatureSet();
   int hasNext();
   featureSet **collection;                   // Array of featureSet's
@@ -122,7 +141,7 @@ public:
   ~StegoModel();
   
   void addView(StegoView *view);
-  void openCollection(char *path);
+  void openCollection(const char* path);
   void estimateMus();
   
   int getDimension();
@@ -130,6 +149,7 @@ public:
   double* getMuVector();                     // can be a particular feature vector or mu
   double* getQPHist();
   double* getSigma();
+  double *getDiag();
   FeatureCollection* getCollection();
 protected:
   int current_view;
@@ -146,18 +166,29 @@ protected:
 // void storeGaussian(char *path, myGaussian *gauss);
 featureSet* openFeatureSet(char *path);
 int closeFeatureSet(featureSet *set);
+int addFeatureFile(featureSet *set, char *path);
 int readVector(featureSet *set, double *vec);
 void stegoRewind(featureSet *set);
-void pathConcat(char* a, char* b, char *result);
+void pathConcat(const char* a, const char* b, char *result);
 
 extern "C" { 
   stegoContext* init_stego();
   gpuContext* init_gpu();
   void close_stego(stegoContext *steg);
   void close_gpu(gpuContext *gp);
-  
   int estimateMu(stegoContext *steg);
+  void printPointerInfo(void *ptr);
+  
   int estimateSigma(stegoContext *steg);
+  void constructQ(double *q, double *diag, double norm, int count);
+//   void initQR(stegoContext *steg);
+//   void closeQR(stegoContext *steg);
+  klContext* initKLContext(stegoContext* steg);
+  void closeKLContext(klContext *klc);
+  void applyQ(cublasHandle_t handle, int dim, double *q, double *vec, double *tmp, double *dotp, double *mintwo);
+  void applyQs(klContext* klc, double* qs_g, double* vs_g, int numqs, int numvs, int cdim);
+  void qrHouseholder(stegoContext *steg);
+  void qrUnitTest();
 //   int computeQPHistogram(stegoContext *steg, double *mu_g, int qp_range, double *result);
 }
 

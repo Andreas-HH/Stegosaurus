@@ -13,6 +13,7 @@ FeatureWidget::FeatureWidget(QWidget* parent, StegoModel* model): QWidget(parent
   this->model = model;
   model->addView(this);
   updateView();
+  setLayout(layout);
 }
 
 /*void FeatureWidget::updateProgress(double p) {
