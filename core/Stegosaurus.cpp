@@ -18,80 +18,50 @@ void pathConcat(const char* a, const char* b, char* result) {
 }
 
 
-FeatureCollection::FeatureCollection(const char* path) {
-  int i;
-//   int numsets = 0;
-  char *str = (char*) malloc(512*sizeof(char));
-  
-  selected = -1;
-  current_set = 0;
-  DIR *root = opendir(path);
-  struct dirent *entry;
-  
-  num_sets = 0;
-  if (root == NULL) {
-//     printf("root is NULL \n");
-    return;
-  }
-//   printf("Root not NULL. \n");
-  while ((entry = readdir(root)) != NULL) {
-    if (strstr(entry->d_name, ".fv") != NULL) {
-      num_sets++;
-    }
-  }
-  collection = (featureSet**) malloc(num_sets*sizeof(featureSet*));
-  rewinddir(root);
-  for(i = 0; i < num_sets; ) {
-    entry = readdir(root);
-//     printf("%s \n", pathConcat(path, entry->d_name));
-    if (strstr(entry->d_name, ".fv") != NULL) {
-//       printf("%s \n", entry->d_name);
-      pathConcat(path, entry->d_name, str);
-      printf(" %s \n", str);
-      if (i == 0) {
-	collection[i] = openFeatureSet(str);
-	collection[i]->name = (char*) malloc(strlen(entry->d_name)*sizeof(char));
-	strcpy(collection[i]->name, entry->d_name);
-      } else {
-	addFeatureFile(collection[0], str);
-      }
-      i++;
-    }
-  }
-  num_sets = 1; // needs to be done properly
-//   printf("%i sets, collection[0]->M = %i \n", num_sets, collection[0]->M);
-  closedir(root);
-  rewind();
-  free(str);
-//   printf("FeatureCollection: done. \n");
+FeatureCollection::FeatureCollection(featureHeader *h) {
+  memcpy(header, h, sizeof(featureHeader));
 }
 
 FeatureCollection::~FeatureCollection() {
   int i;
+  map< int, featureSet* >::iterator fiter;
   
-//   printf("Closing FeatureCollection. \n");
-  for (i = 0; i < num_sets; i++) {
-    closeFeatureSet(collection[i]);
+  for (fiter = collection.begin(); fiter != collection.end(); fiter++) {
+    closeFeatureSet(fiter->second);
   }
-  free(collection);
 }
 
-void FeatureCollection::rewind() {
-  current_set = 0;
+// void FeatureCollection::rewind() {
+//   current_set = 0;
+// }
+// 
+// void FeatureCollection::setSelected() {
+// //   printf("setting selcted: %i", current_set);
+//   selected = current_set;
+// }
+// 
+// int FeatureCollection::isSelected() {
+// //   printf("isSelected, %i, %i, %i \n", current_set, selected, current_set == selected);
+//   return (current_set == selected);
+// }
+
+int FeatureCollection::addFeatureFile(const char *path, featureHeader *header) {
+  int bin = (int) (header->rate/BIN_WIDTH + 0.5);
+  featureSet *set;
+
+  printf("adding feature file \n");
+  if (collection[bin] == 0) {
+    printf("no collection for this yet! \n");
+    set = openFeatureSet(path);
+    collection[bin] = set;
+  } else {
+    newFeatureFile(collection[bin], path);
+  }
 }
 
-void FeatureCollection::setSelected() {
-//   printf("setting selcted: %i", current_set);
-  selected = current_set;
-}
-
-int FeatureCollection::isSelected() {
-//   printf("isSelected, %i, %i, %i \n", current_set, selected, current_set == selected);
-  return (current_set == selected);
-}
 
 int FeatureCollection::getNumSets() {
-  return num_sets;
+   return collection.size();
 }
 
 int FeatureCollection::getCurrentSet() {
@@ -99,16 +69,18 @@ int FeatureCollection::getCurrentSet() {
 }
 
 featureSet* FeatureCollection::getFeatureSet(int index) {
-  return collection[index];
+//   return collection[index];
+  return 0;
 }
 
-void FeatureCollection::setSelected(int index) {
-  selected = index;
-}
+// // void FeatureCollection::setSelected(int index) {
+// //   selected = index;
+// // }
 
 
 featureSet* FeatureCollection::nextFeatureSet() {
-  return collection[current_set++];
+//   return collection[current_set++];
+  return 0;
 }
 
 int FeatureCollection::hasNext() {
@@ -118,10 +90,14 @@ int FeatureCollection::hasNext() {
 
 
 StegoModel::StegoModel() {
+  int i;
 //   features = new FeatureCollection();
   current_view = 0;
   steg = init_stego();
-  fcol = 0;
+  for (i = 0; i < 10; i++) {
+    collections[i] = 0;
+  }
+//   fcol = 0;
 //   fcol = new FeatureCollection("");
 }
 
@@ -131,72 +107,116 @@ StegoModel::~StegoModel() {
 }
 
 void StegoModel::estimateMus() {
-  int i;
-  
-//   while (fcol->hasNext()) {
-//   printf("estimate mus, %i \n", fcol->getNumSets());
-  for (i = 0; i < fcol->getNumSets(); i++) {
-//     steg->features = fcol->nextFeatureSet();
-    steg->features = fcol->getFeatureSet(i);
-//     printf("set steg->features \n");
-    fcol->setSelected(i);
-//     printf("set selected correctly \n");
-    estimateMu(steg);
-    progressChanged(((double) i)/(double) fcol->getNumSets());
-    progressChanged(((double) fcol->getCurrentSet())/(double) fcol->getNumSets());
-  }
-  estimateSigma(steg);
-  progressChanged(0.99);
-  qrHouseholder(steg);
-//   qrUnitTest();
-//   fcol->rewind();
-  modelChanged();
-  progressChanged(0.);
-//   printf("done. \n");
+//   int i;
+//   
+// //   while (fcol->hasNext()) {
+// //   printf("estimate mus, %i \n", fcol->getNumSets());
+//   for (i = 0; i < fcol->getNumSets(); i++) {
+// //     steg->features = fcol->nextFeatureSet();
+//     steg->features = fcol->getFeatureSet(i);
+// //     printf("set steg->features \n");
+// //     fcol->setSelected(i);
+// //     printf("set selected correctly \n");
+//     estimateMu(steg);
+//     progressChanged(((double) i)/(double) fcol->getNumSets());
+//     progressChanged(((double) fcol->getCurrentSet())/(double) fcol->getNumSets());
+//   }
+// //   estimateSigma(steg);
+// //   progressChanged(0.99);
+// //   qrHouseholder(steg);
+// //   qrUnitTest();
+// //   fcol->rewind();
+//   modelChanged();
+//   progressChanged(0.);
+// //   printf("done. \n");
 }
 
 
 void StegoModel::addView(StegoView *view) {
-  views[current_view] = view;
+//   views[current_view] = view;
+  views.push_back(view);
   current_view++;
 }
 
 void StegoModel::modelChanged() {
   int i;
+  list< StegoView* >::iterator siter;
   
-  for (i = 0; i < current_view; i++) {
-    views[i]->updateView();
+//   for (i = 0; i < current_view; i++) {
+//     views[i]->updateView();
+//   }
+  for (siter = views.begin(); siter != views.end(); siter++) {
+    printf("updateing some view \n");
+    (*siter)->updateView();
   }
 }
 
 void StegoModel::collectionChanged() {
   int i;
+  list< StegoView* >::iterator siter;
   
-  for (i = 0; i < current_view; i++) {
-    views[i]->updateCollection();
+//   for (i = 0; i < current_view; i++) {
+//     views[i]->updateCollection();
+//   }
+  for (siter = views.begin(); siter != views.end(); siter++) {
+    (*siter)->updateCollection();
   }
 }
 
 void StegoModel::progressChanged(double p) {
   int i;
+  list< StegoView* >::iterator siter;
   
-  for (i = 0; i < current_view; i++) {
-    views[i]->updateProgress(p);
+//   for (i = 0; i < current_view; i++) {
+//     views[i]->updateProgress(p);
+//   }
+  for (siter = views.begin(); siter != views.end(); siter++) {
+    (*siter)->updateProgress(p);
   }
 }
 
-void StegoModel::openCollection(const char* path) {
-  if (fcol != NULL) delete fcol;
-//   printf("opening collection \n");
-//   if (fcol == 0) printf("features is NULL \n");
-//   else printf("features not NULL \n");
-  fcol = new FeatureCollection(path);
-//   if (features->hasNext())
-//     steg->features = features->collection[0];
-//   modelChanged();
-  collectionChanged();
-  modelChanged();
-//   printf("opened collection! \n");
+void StegoModel::openDirectory(const char* path) {
+  int i;
+  int num_sets = 0;
+  int bin;
+  char *str = (char*) malloc(512*sizeof(char));
+  DIR *root = opendir(path);
+  FILE *file;
+  featureHeader header;
+  struct dirent *entry;
+  
+  if (root == NULL) {
+//     printf("root is NULL \n");
+    return;
+  }
+  printf("Root not NULL. \n");
+  while ((entry = readdir(root)) != NULL) {
+    if (strstr(entry->d_name, ".fv") != NULL) {
+      num_sets++;
+    }
+  }
+  rewinddir(root);
+  for(i = 0; i < num_sets; ) {
+    entry = readdir(root);
+    if (strstr(entry->d_name, ".fv") != NULL) {
+      pathConcat(path, entry->d_name, str);
+      printf("about to open str (=%s) \n", str);
+      file = fopen(str, "r");
+      printf("about to read header \n");
+      readHeader(file, &header);
+      printf("successfully read header \n");
+      fclose(file);
+//       set->name = (char*) malloc(strlen(entry->d_name)*sizeof(char));
+//       strcpy(set->name, entry->d_name);
+      if (collections[header.method] == 0)
+	collections[header.method] = new FeatureCollection(&header);
+      collections[header.method]->addFeatureFile(str, &header);
+      i++;
+    }
+  }
+//   printf("%i sets, collection[0]->M = %i \n", num_sets, collection[0]->M);
+  closedir(root);
+  free(str);
 }
 
 int StegoModel::getDimension() {
@@ -225,17 +245,18 @@ double* StegoModel::getQPHist() {
 }
 
 FeatureCollection* StegoModel::getCollection() {
-  return fcol; // fcol
+//   return fcol; // fcol
+  return 0;
 }
 
 double* StegoModel::getSigma() {
-    if (steg->features == NULL) 
+  if (steg->features == NULL) 
     return NULL;
   return steg->features->gauss->qr;
 }
 
 double* StegoModel::getDiag() {
-    if (steg->features == NULL) 
+  if (steg->features == NULL) 
     return NULL;
   return steg->features->gauss->qr_diag;
 }

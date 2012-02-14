@@ -147,7 +147,7 @@ void PairWidget::paintEvent(QPaintEvent *event) {
 
 
 void PairWidget::paintCache() {
-//   printf("painting \n");
+  printf("painting \n");
   int qx, qy;
   int dim = model->getDimension();
   double *mu = model->getMuVector();

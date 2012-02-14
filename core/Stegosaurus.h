@@ -7,6 +7,9 @@
 #include <string.h>
 #include <cublas_v2.h>
 #include <cuda.h>
+#include <vector>
+#include <list>
+#include <map>
 
 #define CUBLAS_CALL(x) switch (x) {       \
     case CUBLAS_STATUS_SUCCESS:           \
@@ -44,8 +47,12 @@
 
 #define BLOCKS(x,tbp) ((x)+(tbp)-1)/(tpb)
 
+using namespace std;
+
 const int QP_RANGE = 8;
 const int MAX_FILES = 20;
+
+const double BIN_WIDTH = 0.001;
 
 typedef struct myGaussian {
   int dim;
@@ -56,7 +63,20 @@ typedef struct myGaussian {
   double *qr;
 } myGaussian;
 
+typedef struct featureHeader {
+  char pair;
+  char slice_type;
+  char method;
+  char using_rate;
+  double rate;
+  char accept;
+  char qp_offset;
+  char qp_range;
+  unsigned char ranges[3][16];
+} featureHeader;
+
 typedef struct featureSet {
+  featureHeader *header;
   int dim;
   int M;
   int gpu_matrix_width;                      // max number of matrix column in gpu memory
@@ -64,16 +84,9 @@ typedef struct featureSet {
   int current_file;
   FILE **files;
   char *name;
-//   double *current_feature;                   // created using cudaHostAlloc (important!) 
+
   double *max_vec;                           // vector of maximum entries
   double *qp_vec;
-  
-//   double *qp_g;
-//   double *mu_g;
-//   double *sigma_g;
-//   double *vec_g;
-//   double *max_g;                             // maybe a waste of gpu memory when it comes to computing KL
-  
   double kl_div;
   double divM;    
   myGaussian* gauss;
@@ -81,7 +94,6 @@ typedef struct featureSet {
 
 typedef struct gpuContext {
   int threads_per_block;
-//   int qr_cache;
   int num_streams;
   cublasHandle_t handle;
 } gpuContext;
@@ -89,15 +101,17 @@ typedef struct gpuContext {
 typedef struct klContext {
   int dim;
   int nstr;
-//   double *currentq_g;   // gpu
-//   double *diag_g;
-//   double *qr_g;
+
   cudaStream_t *streams;
   double **tmp_g;
   double **vec_g;
   double **dotp_g;
   cublasHandle_t *handle;
 } klContext;
+
+typedef struct mmdContext {
+  
+} mmdContext;
 
 typedef struct stegoContext {
   gpuContext *gpu_c;                         // might contain multiple cublas handles later (or multiple gpucontexts, we will see...)
@@ -116,20 +130,23 @@ public:
 
 class FeatureCollection {
 public:
-  FeatureCollection(const char *path);
+  FeatureCollection(featureHeader *h);
   ~FeatureCollection();
   
-  void rewind();
-  void setSelected();
-  void setSelected(int index);
-  int isSelected();
+//   void rewind();
+//   void setSelected();
+//   void setSelected(int index);
+//   int isSelected();
   int getNumSets();
   int getCurrentSet();
+  int addFeatureFile(const char *path, featureHeader *header);
   featureSet* getFeatureSet(int index);
   featureSet* nextFeatureSet();
   int hasNext();
-  featureSet **collection;                   // Array of featureSet's
+//   featureSet **collection;                   // Array of featureSet's
 protected:
+  map < int, featureSet* > collection;
+  featureHeader *header;
   int num_sets;
   int current_set;
   int selected;
@@ -141,7 +158,7 @@ public:
   ~StegoModel();
   
   void addView(StegoView *view);
-  void openCollection(const char* path);
+  void openDirectory(const char* path);
   void estimateMus();
   
   int getDimension();
@@ -154,8 +171,11 @@ public:
 protected:
   int current_view;
 //   double progress;
-  StegoView *views[25];                      // maybe a linked list or some other container is better here
-  FeatureCollection *fcol;                     // or some signal/slot system
+//   StegoView *views[25];                      // maybe a linked list or some other container is better here
+  list< StegoView* > views;
+//   FeatureCollection *fcol;                     // or some signal/slot system
+  FeatureCollection *collections[10];           // [0] = clean, [1] = plusminus1, ...
+//   map < int, FeatureCollection* > collections;  // bin -> collection. Each collection has a list of featureSets, of which each has an array of files
   stegoContext *steg;
   void modelChanged();                       // asks all views to update themselves
   void progressChanged(double p);
@@ -164,9 +184,10 @@ protected:
 
 
 // void storeGaussian(char *path, myGaussian *gauss);
-featureSet* openFeatureSet(char *path);
+int readHeader(FILE *file, featureHeader *header);
+featureSet* openFeatureSet(const char* path);
 int closeFeatureSet(featureSet *set);
-int addFeatureFile(featureSet *set, char *path);
+int newFeatureFile(featureSet *set, const char *path);
 int readVector(featureSet *set, double *vec);
 void stegoRewind(featureSet *set);
 void pathConcat(const char* a, const char* b, char *result);

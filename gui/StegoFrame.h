@@ -10,7 +10,6 @@
 
 #include <QtGui>
 
-
 class StegoFrame : public QMainWindow, public StegoView {
   Q_OBJECT
 public:

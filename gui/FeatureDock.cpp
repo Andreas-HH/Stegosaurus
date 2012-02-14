@@ -33,19 +33,19 @@ void FeatureWidget::updateCollection() {
 //   collection = 0;
   collection = model->getCollection();
   if (collection != 0) {
-    collection->rewind();
+//     collection->rewind();
     
     while (collection->hasNext()) {
       set = collection->nextFeatureSet();
-      if (collection->isSelected())
-	label = new QLabel(tr(set->name).append(tr(" (S)")));
-      else 
+//       if (collection->isSelected())
+// 	label = new QLabel(tr(set->name).append(tr(" (S)")));
+//       else 
 	label = new QLabel(tr(set->name));
       layout->addWidget(label);
     }
     layout->addStretch();
 //     layout->addWidget(progress);
-    collection->rewind();
+//     collection->rewind();
   }
   update();
 }
