@@ -136,6 +136,7 @@ void PairWidget::updateMinSize() {
 }
 
 void PairWidget::paintEvent(QPaintEvent *event) {
+  printf("painting! \n");
   QPainter painter;
   painter.begin(this);
 
@@ -147,15 +148,19 @@ void PairWidget::paintEvent(QPaintEvent *event) {
 
 
 void PairWidget::paintCache() {
-  printf("painting \n");
+//   printf("painting \n");
   int qx, qy;
   int dim = model->getDimension();
+  int **ranges = model->getRanges();
   double *mu = model->getMuVector();
   double *max = model->getMaxVector();
   double *qpHist= model->getQPHist();
   QColor *bg = new QColor(0, 0, 0, 0);
   QPainter painter(cache);
   QString *string = new QString("%1");
+  
+  if (ranges != 0)
+    printf("ranges: %i, %i \n", ranges[0][0], ranges[0][1]);
   
 //   painter.fillRect(QRect(0, 0, size().width(), size().height()), Qt::white);
   cache->fill(bg->rgba());
@@ -191,8 +196,8 @@ void PairWidget::paintSquares(int x, int y, double *values, QPainter *painter) {
     for (j = 0; j < pair_square_ranges[1]; j++) {
       painter->setOpacity(((double) qMin<int>(barHeight, scale*v[i*pair_square_ranges[1] + j]))/((double) barHeight));
 //       printf("drawing point (%i, %i) with opacity %f, scale %i, value %f \n", x+j, y+i, ((double) qMin<int>(barHeight, scale*v[i]))/((double) barHeight), scale);
-      if (i == (pair_square_ranges[0]-1)/2 && j == (pair_square_ranges[1]-1)/2) v--;
-      else painter->drawPoint(x+j, y+i);
+//       if (i == (pair_square_ranges[0]-1)/2 && j == (pair_square_ranges[1]-1)/2) v--;
+      painter->drawPoint(x+j, y+i);
     }
   }
   
@@ -202,8 +207,8 @@ void PairWidget::paintSquares(int x, int y, double *values, QPainter *painter) {
     for (j = 0; j < pair_square_ranges[3]; j++) {
       painter->setOpacity(((double) qMin<int>(barHeight, scale*v[i*pair_square_ranges[3] + j]))/((double) barHeight));
 //       printf("drawing point (%i, %i) with opacity %f, scale %i, value %f \n", x+j, y+i, ((double) qMin<int>(barHeight, scale*v[i]))/((double) barHeight), scale);
-      if (i == (pair_square_ranges[2]-1)/2 && j == (pair_square_ranges[3]-1)/2) v--;
-      else painter->drawPoint(x+j+28, y+i);
+//       if (i == (pair_square_ranges[2]-1)/2 && j == (pair_square_ranges[3]-1)/2) v--;
+      painter->drawPoint(x+j+28, y+i);
     }
   }
   
@@ -213,8 +218,8 @@ void PairWidget::paintSquares(int x, int y, double *values, QPainter *painter) {
     for (j = 0; j < pair_square_ranges[5]; j++) {
       painter->setOpacity(((double) qMin<int>(barHeight, scale*v[i*pair_square_ranges[5] + j]))/((double) barHeight));
 //       printf("drawing point (%i, %i) with opacity %f, scale %i, value %f \n", x+j, y+i, ((double) qMin<int>(barHeight, scale*v[i]))/((double) barHeight), scale);
-      if (i == (pair_square_ranges[4]-1)/2 && j == (pair_square_ranges[5]-1)/2) v--;
-      else painter->drawPoint(x+j+32, y+i+21);
+//       if (i == (pair_square_ranges[4]-1)/2 && j == (pair_square_ranges[5]-1)/2) v--;
+      painter->drawPoint(x+j+32, y+i+21);
     }
   }
   

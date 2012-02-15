@@ -68,7 +68,7 @@ void StegoFrame::openCollection() {
   if (fdial->exec()) {
     fileNames = fdial->selectedFiles();
     for (i = 0; i < fileNames.size(); i++) {
-      printf("Opening features %s \n", fileNames.at(i).toStdString().c_str());
+//       printf("Opening features %s \n", fileNames.at(i).toStdString().c_str());
       model->openDirectory(fileNames.at(i).toStdString().c_str());
     }
   }

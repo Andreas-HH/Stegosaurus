@@ -51,6 +51,7 @@ using namespace std;
 
 const int QP_RANGE = 8;
 const int MAX_FILES = 20;
+const int num_coefs[] = {16, 4, 15};
 
 const double BIN_WIDTH = 0.001;
 
@@ -115,7 +116,7 @@ typedef struct mmdContext {
 
 typedef struct stegoContext {
   gpuContext *gpu_c;                         // might contain multiple cublas handles later (or multiple gpucontexts, we will see...)
-  featureSet *features;                         // just have an array of handles here?
+  featureSet *features;                      // just have an array of handles here?
 //   myGaussian *clean_gauss;                   // shared among stegoContexts, only read though! if multiple contexts are loaded at all
 //   myGaussian *stego_gauss;                   // doesn't store inverse or QR.
 } stegoContext;
@@ -133,20 +134,26 @@ public:
   FeatureCollection(featureHeader *h);
   ~FeatureCollection();
   
-//   void rewind();
-//   void setSelected();
-//   void setSelected(int index);
-//   int isSelected();
+  class Iterator {
+  public:
+    Iterator(FeatureCollection *f);
+    bool hasNext();
+    featureSet* next();
+  protected:
+    FeatureCollection *fc;
+    map< int, featureSet* >::iterator iter;
+  };
+  
   int getNumSets();
   int getCurrentSet();
   int addFeatureFile(const char *path, featureHeader *header);
   featureSet* getFeatureSet(int index);
   featureSet* nextFeatureSet();
+  FeatureCollection::Iterator* iterator();
   int hasNext();
-//   featureSet **collection;                   // Array of featureSet's
 protected:
   map < int, featureSet* > collection;
-  featureHeader *header;
+  featureHeader header;
   int num_sets;
   int current_set;
   int selected;
@@ -167,15 +174,13 @@ public:
   double* getQPHist();
   double* getSigma();
   double *getDiag();
+  int** getRanges();
   FeatureCollection* getCollection();
 protected:
-  int current_view;
-//   double progress;
-//   StegoView *views[25];                      // maybe a linked list or some other container is better here
+//   int current_view;
+  int **ranges;                              //  [block][row], row depends on if we have pair or hist features,, the first added feature file will determine this!
   list< StegoView* > views;
-//   FeatureCollection *fcol;                     // or some signal/slot system
-  FeatureCollection *collections[10];           // [0] = clean, [1] = plusminus1, ...
-//   map < int, FeatureCollection* > collections;  // bin -> collection. Each collection has a list of featureSets, of which each has an array of files
+  FeatureCollection *collections[10][8];           // [method][accept] ... [0] = clean, [1] = plusminus1, ... 
   stegoContext *steg;
   void modelChanged();                       // asks all views to update themselves
   void progressChanged(double p);
@@ -202,15 +207,12 @@ extern "C" {
   
   int estimateSigma(stegoContext *steg);
   void constructQ(double *q, double *diag, double norm, int count);
-//   void initQR(stegoContext *steg);
-//   void closeQR(stegoContext *steg);
   klContext* initKLContext(stegoContext* steg);
   void closeKLContext(klContext *klc);
   void applyQ(cublasHandle_t handle, int dim, double *q, double *vec, double *tmp, double *dotp, double *mintwo);
   void applyQs(klContext* klc, double* qs_g, double* vs_g, int numqs, int numvs, int cdim);
   void qrHouseholder(stegoContext *steg);
   void qrUnitTest();
-//   int computeQPHistogram(stegoContext *steg, double *mu_g, int qp_range, double *result);
 }
 
 #endif /* STEGOSAURUS */

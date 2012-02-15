@@ -86,6 +86,7 @@ int estimateMu(stegoContext *steg) {
   for (i = 0; i < fs->M; i++) {
      read = readVector(fs, current_feature);
      if (read != dim) printf("read something wrong: %i \n", read);
+//      else printf("Read something right! \n");
      CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
      cublasDaxpy(*handle, dim, &(fs->divM), vec_g, 1, mu_g, 1);     // put divM on gpu?
      compareMax<<<BLOCKS(dim,tpb),tpb>>>(dim, max_g, vec_g);
@@ -110,7 +111,7 @@ int estimateMu(stegoContext *steg) {
   CUDA_CALL( cudaFree(vec_g));
   CUDA_CALL( cudaFree(max_g));
   
-  printf("Done estimating some mu \n");
+//   printf("Done estimating some mu \n");
   
   return 0;
 }

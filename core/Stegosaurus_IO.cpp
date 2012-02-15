@@ -4,23 +4,24 @@
 int readHeader(FILE *file, featureHeader *header) {
   int i;
   
-  printf("pair: %i \n", header->pair);
+//   printf("pair: %i \n", header->pair);
   fread(&header->pair, sizeof(char), 1, file);
-  printf("pair: %i \n", header->pair);
+//   printf("pair: %i \n", header->pair);
   fread(&header->slice_type, sizeof(char), 1, file);
-  printf("slice_type: %i \n", header->slice_type);
+//   printf("slice_type: %i \n", header->slice_type);
   fread(&header->method, sizeof(char), 1, file);
-  printf("method: %i \n", header->method);
+//   printf("method: %i \n", header->method);
   if (header->method != 0) {
     fread(&header->using_rate, sizeof(char), 1, file);
     fread(&header->rate, sizeof(double), 1, file);
-    printf("rate: %f \n", header->rate);
+//     printf("rate: %f \n", header->rate);
     fread(&header->accept, sizeof(char), 1, file);
+//     printf("accept: %i \n", header->accept);
   }
   fread(&header->qp_offset, sizeof(char), 1, file);
-  printf("offset: %i \n", header->qp_offset);
+//   printf("offset: %i \n", header->qp_offset);
   fread(&header->qp_range, sizeof(char), 1, file);
-  printf("range: %i \n", header->qp_range);
+//   printf("range: %i \n", header->qp_range);
   
   for (i = 0; i < 16; i++) fread(&header->ranges[0][0]+i, sizeof(unsigned char), 1, file);
   for (i = 0; i < 4; i++)  fread(&header->ranges[1][0]+i, sizeof(unsigned char), 1, file);
@@ -53,7 +54,7 @@ featureSet* openFeatureSet(const char *path) {
     for (i = 0; i < 15; i++) dim += 2*header.ranges[0][i]+1;
   }
   dim *= header.qp_range;
-  printf("Opening featureset with dim=%i \n", dim);
+//   printf("Opening featureset with dim=%i \n", dim);
   
 //   printf("Opening some not NULL featureset!, dim=%i \n", dim);
 //   CUDA_CALL( cudaMalloc(&mu_g, dim*sizeof(double)));
@@ -66,9 +67,12 @@ featureSet* openFeatureSet(const char *path) {
   vec = (double*) malloc(dim*sizeof(double));
   
   M = 0;
-  while ((read = fread(vec, sizeof(double), dim, file))>0) // && M<10000
+  while ((read = fread(vec, sizeof(int), dim, file))>0) // && M<10000
     M++;
-  printf("M = %i \n", M);
+//   printf("M = %i \n", M);
+  if (read != 0) printf("Wrong dimension?? \n");
+  rewind(file);
+  readHeader(file, &header);
 //   if (read == -1)
 //     return NULL;
   
@@ -96,7 +100,7 @@ featureSet* openFeatureSet(const char *path) {
   set->gauss->dim = dim;
   set->gpu_matrix_width = dim/2+1;                      // maybe wish to do something smarter here!
   
-  stegoRewind(set);
+//   stegoRewind(set);
 //   printf("opened feature set: dim=%i, M=%i \n", dim, M);
   free(vec);
   
@@ -104,26 +108,38 @@ featureSet* openFeatureSet(const char *path) {
 }
 
 int newFeatureFile(featureSet* set, const char* path) {
-  int dim;
+  int i;
+  int dim = 0;
   int read;
-  double vec[set->dim];
-  FILE *file;
-  
-  printf("adding featuer file \n");
-  
+  int vec[set->dim];
+  FILE *file;// = fopen(path, "r");
+  featureHeader header;
+    
   if (set->num_files == MAX_FILES) return -1;
   file = fopen(path,"r");
+  readHeader(file, &header);
+//   // double-check dimension
+//   if (header.pair) {
+//     dim = (2*header.ranges[0][0]+1)*(2*header.ranges[0][1]+1) + 
+//           (2*header.ranges[1][0]+1)*(2*header.ranges[1][1]+1) + 
+// 	  (2*header.ranges[2][0]+1)*(2*header.ranges[2][1]+1);
+//   } else {
+//     for (i = 0; i < 16; i++) dim += 2*header.ranges[0][i]+1;
+//     for (i = 0; i < 4; i++)  dim += 2*header.ranges[0][i]+1;
+//     for (i = 0; i < 15; i++) dim += 2*header.ranges[0][i]+1;
+//   }
+//   dim *= header.qp_range;
+//   if (dim != set->dim) {
+//     printf("Dimension mismatch! \n");
+//     fclose(file);
+//     return -2;
+//   }
   
-  fread(&dim, sizeof(int), 1, file);
-  if (dim != set->dim) {
-    printf("Dimension mismatch! \n");
-    fclose(file);
-    return -2;
-  }
-  while ((read = fread(vec, sizeof(double), dim, file))>0) // && M<10000
+  while ((read = fread(vec, sizeof(int), dim, file))>0) // && M<10000
     set->M++;
   set->divM = 1./set->M;
   rewind(file);
+  readHeader(file, &header);
   
   set->files[set->num_files] = file;
   set->num_files++;
@@ -131,11 +147,16 @@ int newFeatureFile(featureSet* set, const char* path) {
 }
 
 int readVector(featureSet *set, double *vec) {
+  int i;
   int read = 0;
-  int dim;
+  int vec_i[set->dim];
+//   int dim;
   
   while (read == 0 && set->current_file < set->num_files) {
-    read = fread(vec, sizeof(double), set->dim, set->files[set->current_file]);
+    read = fread(vec_i, sizeof(int), set->dim, set->files[set->current_file]);
+    for (i = 0; i < set->dim; i++) {
+      vec[i] = (double) vec_i[i];
+    }
     if (read > 0 && read != set->dim)
       return -1;
     else if (read == 0) {
