@@ -10,15 +10,15 @@ class FeatureWidget : public QWidget, public StegoView {
 public:
   FeatureWidget(QWidget* parent = 0, StegoModel *model = 0);
   
-//   void updateView();
   void updateCollection();
-//   void updateProgress(double p);
-//   void setModel(StegoModel *model);
 protected:
+  QTreeView  *fview;
+  QStandardItemModel *treeModel;
+  QStringList *labels;
   QBoxLayout *layout;
   StegoModel *model;
-//   QProgressBar *progress;
-  FeatureCollection *collection;
+public slots:
+  void selection(QModelIndex mi);
 };
 
 class FeatureDock : public QDockWidget {

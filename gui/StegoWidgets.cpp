@@ -136,7 +136,7 @@ void PairWidget::updateMinSize() {
 }
 
 void PairWidget::paintEvent(QPaintEvent *event) {
-  printf("painting! \n");
+//   printf("painting! \n");
   QPainter painter;
   painter.begin(this);
 
@@ -159,8 +159,8 @@ void PairWidget::paintCache() {
   QPainter painter(cache);
   QString *string = new QString("%1");
   
-  if (ranges != 0)
-    printf("ranges: %i, %i \n", ranges[0][0], ranges[0][1]);
+//   if (ranges != 0)
+//     printf("ranges: %i, %i \n", ranges[0][0], ranges[0][1]);
   
 //   painter.fillRect(QRect(0, 0, size().width(), size().height()), Qt::white);
   cache->fill(bg->rgba());

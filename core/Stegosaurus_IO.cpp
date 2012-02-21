@@ -79,7 +79,7 @@ featureSet* openFeatureSet(const char *path) {
   set->dim = dim;
   set->M = M;
   set->divM = 1./((double) M);
-  set->kl_div = -1.;                                // some invalid value
+//   set->kl_div = -1.;                                // some invalid value
   set->files = (FILE**) malloc(MAX_FILES*sizeof(FILE*));//file;
   set->files[0] = file;
   set->num_files = 1;

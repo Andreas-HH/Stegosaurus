@@ -30,17 +30,22 @@ FeatureCollection::~FeatureCollection() {
 
 int FeatureCollection::addFeatureFile(const char *path, featureHeader *header) {
   int bin = (int) (header->rate/BIN_WIDTH + 0.5);
+  printf("rate = %g, bin = %i \n", header->rate, bin);
   featureSet *set;
 
   printf("adding feature file \n");
   if (collection[bin] == 0) {
     printf("no collection for this yet! \n");
     set = openFeatureSet(path);
+    set->rate = header->rate;
+    set->id = bin;
     collection[bin] = set;
     printf("just defined collection[%i] \n", bin);
   } else {
-    newFeatureFile(collection[bin], path);
+    printf("There already is something \n");
+//     newFeatureFile(collection[bin], path);
   }
+  printf("added new feature file \n");
 }
 
 int FeatureCollection::getNumSets() {
@@ -212,6 +217,7 @@ void StegoModel::openDirectory(const char* path) {
       fclose(file);
 //       set->name = (char*) malloc(strlen(entry->d_name)*sizeof(char));
 //       strcpy(set->name, entry->d_name);
+      printf("method: %i \n", header.method);
       if (collections[header.method][header.accept] == 0) {
 	collections[header.method][header.accept] = new FeatureCollection(&header);
 	printf("Created new collection for method %i and accept %i \n", header.method, header.accept);
@@ -220,6 +226,7 @@ void StegoModel::openDirectory(const char* path) {
       i++;
     }
   }
+  collectionChanged();
   
 //   // print results
 //   FeatureCollection::Iterator* iter;
@@ -240,6 +247,16 @@ void StegoModel::openDirectory(const char* path) {
   closedir(root);
   free(str);
 }
+
+FeatureCollection::Iterator* StegoModel::getFeatureIterator(int method, int accept) {
+  if (method < 0 || method >= 10) return 0;
+  if (accept < 0 || accept >= 8)  return 0;
+  if (collections[method][accept] != 0) {
+    return collections[method][accept]->iterator();
+  }
+  return 0;
+}
+
 
 int** StegoModel::getRanges() {
   return ranges;

@@ -80,6 +80,7 @@ typedef struct featureSet {
   featureHeader *header;
   int dim;
   int M;
+  int id;                                    // helps to find a set
   int gpu_matrix_width;                      // max number of matrix column in gpu memory
   int num_files;
   int current_file;
@@ -88,7 +89,7 @@ typedef struct featureSet {
 
   double *max_vec;                           // vector of maximum entries
   double *qp_vec;
-  double kl_div;
+  double rate;
   double divM;    
   myGaussian* gauss;
 } featureSet;
@@ -175,6 +176,7 @@ public:
   double* getSigma();
   double *getDiag();
   int** getRanges();
+  FeatureCollection::Iterator* getFeatureIterator(int method, int accept);
   FeatureCollection* getCollection();
 protected:
 //   int current_view;
