@@ -5,11 +5,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <iostream>
+// #include <strstream>
 #include <cublas_v2.h>
 #include <cuda.h>
 #include <vector>
 #include <list>
 #include <map>
+// #include <unordered_map>
 
 #define CUBLAS_CALL(x) switch (x) {       \
     case CUBLAS_STATUS_SUCCESS:           \
@@ -45,7 +48,7 @@
       break;                                             \
   }
 
-#define BLOCKS(x,tbp) ((x)+(tbp)-1)/(tpb)
+#define BLOCKS(x,tpb) ((x)+(tpb)-1)/(tpb)
 
 using namespace std;
 
@@ -65,6 +68,7 @@ typedef struct myGaussian {
 } myGaussian;
 
 typedef struct featureHeader {
+  int video_bitrate;
   char pair;
   char slice_type;
   char method;
@@ -87,6 +91,8 @@ typedef struct featureSet {
   FILE **files;
   char *name;
 
+  double *vec_g;
+  double *ones_g;
   double *max_vec;                           // vector of maximum entries
   double *qp_vec;
   double rate;
@@ -112,7 +118,17 @@ typedef struct klContext {
 } klContext;
 
 typedef struct mmdContext {
-  
+  int n;
+  double gamma;
+  double mmd;
+  featureSet *clean;
+  featureSet *stego;
+  double *stego_vectors;
+  double *clean_vectors;
+  double *v1_g;
+  double *v2_g;
+  double *temp_g;
+  double *vectors_g;
 } mmdContext;
 
 typedef struct stegoContext {
@@ -165,9 +181,32 @@ public:
   StegoModel();
   ~StegoModel();
   
+//   class Iterator {
+//   public:
+//     Iterator(StegoModel *model);
+// //     void increaseLevel();
+// //     void decreaseLevel();
+//     int getLevel0();
+//     int getLevel1();
+//     int getLevel2();
+//     int getLevel3();
+// //     FeatureCollection::Iterator *nextCollectionIterator();
+//     bool hasNext();
+//   protected:
+//     int level;
+//     int level1, level3;
+//     map< int, vector< map< int, vector< FeatureCollection* > > > >::iterator *level0iter;
+//     vector< map< int, vector< FeatureCollection* > > >::iterator             *level1iter;
+//     map< int, vector< FeatureCollection* > >::iterator                       *level2iter;
+//     vector< FeatureCollection* >::iterator                                   *level3iter;
+//     void next();
+//   };
+  
   void addView(StegoView *view);
   void openDirectory(const char* path);
   void estimateMus();
+  void doMMD(featureSet *clean, featureSet *stego);
+  void setFeatures(featureSet *set);
   
   int getDimension();
   double* getMaxVector();                    // Vector of maximum elements
@@ -176,13 +215,15 @@ public:
   double* getSigma();
   double *getDiag();
   int** getRanges();
-  FeatureCollection::Iterator* getFeatureIterator(int method, int accept);
+//   Iterator* getIterator();
+  FeatureCollection::Iterator* getFeatureIterator(int video_birate, int pair, int method, int accept);
   FeatureCollection* getCollection();
 protected:
 //   int current_view;
   int **ranges;                              //  [block][row], row depends on if we have pair or hist features,, the first added feature file will determine this!
   list< StegoView* > views;
   FeatureCollection *collections[10][8];           // [method][accept] ... [0] = clean, [1] = plusminus1, ... 
+//   map< int, vector< map< int, vector< FeatureCollection* > > > > collections; // video_bitrate -> hist/pair -> method -> accept
   stegoContext *steg;
   void modelChanged();                       // asks all views to update themselves
   void progressChanged(double p);
@@ -192,10 +233,8 @@ protected:
 
 // void storeGaussian(char *path, myGaussian *gauss);
 int readHeader(FILE *file, featureHeader *header);
-featureSet* openFeatureSet(const char* path);
 int closeFeatureSet(featureSet *set);
 int newFeatureFile(featureSet *set, const char *path);
-int readVector(featureSet *set, double *vec);
 void stegoRewind(featureSet *set);
 void pathConcat(const char* a, const char* b, char *result);
 
@@ -206,6 +245,12 @@ extern "C" {
   void close_gpu(gpuContext *gp);
   int estimateMu(stegoContext *steg);
   void printPointerInfo(void *ptr);
+  featureSet* openFeatureSet(const char* path);
+  int readVector(stegoContext* steg, featureSet* set, double* vec);
+  
+  void estimateGamma(stegoContext* steg, mmdContext *mc);
+  void estimateMMD(stegoContext *steg, mmdContext *mc);
+  double applyKernel(stegoContext* steg, double gamma, int dim, double* v1_g, double* v2_g, double* temp_g);
   
   int estimateSigma(stegoContext *steg);
   void constructQ(double *q, double *diag, double norm, int count);

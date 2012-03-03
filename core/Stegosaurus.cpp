@@ -103,11 +103,11 @@ StegoModel::StegoModel() {
 //   current_view = 0;
   ranges = 0;
   steg = init_stego();
-  for (i = 0; i < 10; i++) {
-    for (j = 0; j < 8; j++) {
-      collections[i][j] = 0;
-    }
-  }
+//   for (i = 0; i < 10; i++) {
+//     for (j = 0; j < 8; j++) {
+//       collections[i][j] = 0;
+//     }
+//   }
 }
 
 StegoModel::~StegoModel() {
@@ -130,6 +130,21 @@ void StegoModel::estimateMus() {
       }
     }
   }
+  modelChanged();
+}
+
+void StegoModel::doMMD(featureSet *clean, featureSet *stego) {
+  mmdContext mc;
+  mc.clean = clean;
+  mc.stego = stego;
+  estimateGamma(steg, &mc);
+  estimateMMD(steg, &mc);
+}
+
+
+void StegoModel::setFeatures(featureSet* set) {
+  steg->features = set;
+  modelChanged();
 }
 
 
@@ -223,6 +238,12 @@ void StegoModel::openDirectory(const char* path) {
 	printf("Created new collection for method %i and accept %i \n", header.method, header.accept);
       }
       collections[header.method][header.accept]->addFeatureFile(str, &header);
+/*      printf("[%i][%i][%i][%i] = %i \n", header.video_bitrate, header.pair, header.method, header.accept, collections[header.video_bitrate][header.pair][header.method][header.accept]);
+      if ((((collections[header.video_bitrate])[header.pair])[header.method])[header.accept] == 0) {
+	collections[header.video_bitrate][header.pair][header.method][header.accept] = new FeatureCollection(&header);
+	printf("Created new collection for method %i and accept %i \n", header.method, header.accept);
+      }
+      collections[header.video_bitrate][header.pair][header.method][header.accept]->addFeatureFile(str, &header);*/
       i++;
     }
   }
@@ -248,9 +269,9 @@ void StegoModel::openDirectory(const char* path) {
   free(str);
 }
 
-FeatureCollection::Iterator* StegoModel::getFeatureIterator(int method, int accept) {
-  if (method < 0 || method >= 10) return 0;
-  if (accept < 0 || accept >= 8)  return 0;
+FeatureCollection::Iterator* StegoModel::getFeatureIterator(int video_birate, int pair, int method, int accept) {
+//   if (method < 0 || method >= 10) return 0;
+//   if (accept < 0 || accept >= 8)  return 0;
   if (collections[method][accept] != 0) {
     return collections[method][accept]->iterator();
   }
@@ -305,3 +326,45 @@ double* StegoModel::getDiag() {
   return steg->features->gauss->qr_diag;
 }
 
+// StegoModel::Iterator* StegoModel::getIterator() {
+//   return new Iterator(this);
+// }
+// 
+// StegoModel::Iterator::Iterator(StegoModel* model) {
+//   level = 0;
+//   level1 = -1;
+//   level3 = -1;
+// //   level0iter = model->collections.iterator();
+//   next();
+// }
+// 
+// int StegoModel::Iterator::getLevel0() {
+// //   return *level0iter->first;
+// }
+// 
+// int StegoModel::Iterator::getLevel1() {
+//   return level1;
+// }
+// 
+// int StegoModel::Iterator::getLevel2() {
+// //   return level2iter->first;
+// }
+// 
+// int StegoModel::Iterator::getLevel3() {
+//   return level3;
+// }
+// 
+// bool StegoModel::Iterator::hasNext() {
+//   return true;
+// }
+// 
+// void StegoModel::Iterator::next() {
+//   int i = 3;
+//   
+// }
+
+// // FeatureCollection::Iterator* StegoModel::Iterator::nextCollectionIterator() {
+// //   FeatureCollection::Iterator* iter = level3iter->iterator();
+// //   next();
+// //   return iter;
+// // }

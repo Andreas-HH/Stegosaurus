@@ -17,6 +17,10 @@ protected:
   QStringList *labels;
   QBoxLayout *layout;
   StegoModel *model;
+  
+    
+  featureSet *set1;
+  featureSet *set2;
 public slots:
   void selection(QModelIndex mi);
 };

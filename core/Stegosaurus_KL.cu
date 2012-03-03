@@ -84,7 +84,7 @@ int estimateMu(stegoContext *steg) {
 
 //   printf("uploaded stuff \n");
   for (i = 0; i < fs->M; i++) {
-     read = readVector(fs, current_feature);
+     read = readVector(steg, steg->features, current_feature);
      if (read != dim) printf("read something wrong: %i \n", read);
 //      else printf("Read something right! \n");
      CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
@@ -161,7 +161,7 @@ int estimateSigma(stegoContext *steg) {
     initDArray<<<BLOCKS(dim*blockwidth,tpb),tpb>>>(sigma_g, dim*blockwidth, 0.);
     printf("about to calc sigma, blockwidth=%i, dim=%i, pos=%i mw=%i\n", blockwidth, dim, posInSigma, fs->gpu_matrix_width);
     for (i = 0; i < fs->M; i++) { // fs->M
-      read = readVector(fs, current_feature);
+      read = readVector(steg, steg->features, current_feature);
       if (read != dim) printf("read something wrong: %i \n", read);
       CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
       subtract<<<BLOCKS(dim,tpb),tpb>>>(dim, vec_g, mu_g);
