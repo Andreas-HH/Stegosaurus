@@ -247,6 +247,7 @@ extern "C" {
   void printPointerInfo(void *ptr);
   featureSet* openFeatureSet(const char* path);
   int readVector(stegoContext* steg, featureSet* set, double* vec);
+  int readVectorL2(stegoContext* steg, featureSet* set, double* vec);
   
   void estimateGamma(stegoContext* steg, mmdContext *mc);
   void estimateMMD(stegoContext *steg, mmdContext *mc);
