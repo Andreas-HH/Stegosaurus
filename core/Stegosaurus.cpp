@@ -17,6 +17,7 @@ void pathConcat(const char* a, const char* b, char* result) {
 
 FeatureCollection::FeatureCollection(featureHeader *h) {
   memcpy(&header, h, sizeof(featureHeader));
+//   cleanSet = 0;
 }
 
 FeatureCollection::~FeatureCollection() {
@@ -29,22 +30,33 @@ FeatureCollection::~FeatureCollection() {
 }
 
 int FeatureCollection::addFeatureFile(const char *path, featureHeader *header) {
-  int bin = (int) (header->rate/BIN_WIDTH + 0.5);
-  printf("rate = %g, bin = %i \n", header->rate, bin);
+  int bin;// = (int) (header->rate/BIN_WIDTH + 0.5);
+//   printf("rate = %g, bin = %i \n", header->rate, bin);
   featureSet *set;
 
+  // there should be some health-checking here!
+  
   printf("adding feature file \n");
-  if (collection[bin] == 0) {
-    printf("no collection for this yet! \n");
-    set = openFeatureSet(path);
-    set->rate = header->rate;
-    set->id = bin;
-    collection[bin] = set;
-    printf("just defined collection[%i] \n", bin);
-  } else {
-    printf("There already is something \n");
-//     newFeatureFile(collection[bin], path);
-  }
+//   if (header->method == 0) {
+//     if (cleanSet == 0) {
+//       cleanSet = openFeatureSet(path);
+//     } else {
+//       newFeatureFile(cleanSet, path);
+//     }
+//   } else {
+    bin = (int) (header->rate/BIN_WIDTH + 0.5);
+    if (collection[bin] == 0) {
+      printf("no collection for this yet! \n");
+      set = openFeatureSet(path);
+      set->rate = header->rate;
+      set->id = bin;
+      collection[bin] = set;
+      printf("just defined collection[%i] \n", bin);
+    } else {
+      printf("There already is something \n");
+  //     newFeatureFile(collection[bin], path);
+    }
+//   }
   printf("added new feature file \n");
 }
 
@@ -103,6 +115,7 @@ StegoModel::StegoModel() {
 //   current_view = 0;
   ranges = 0;
   steg = init_stego();
+  cleanSet = 0;
 //   for (i = 0; i < 10; i++) {
 //     for (j = 0; j < 8; j++) {
 //       collections[i][j] = 0;
@@ -133,12 +146,16 @@ void StegoModel::estimateMus() {
   modelChanged();
 }
 
-void StegoModel::doMMD(featureSet *clean, featureSet *stego) {
+// we don't want to give sets directly, rather indices inside the collection
+double StegoModel::doMMD(featureSet *clean, featureSet *stego) {
   mmdContext mc;
   mc.clean = clean;
   mc.stego = stego;
+  loadVectorsMMD(steg, mc);
   estimateGamma(steg, &mc);
   estimateMMD(steg, &mc);
+  
+  return mc.mmd;
 }
 
 
@@ -233,11 +250,23 @@ void StegoModel::openDirectory(const char* path) {
 //       set->name = (char*) malloc(strlen(entry->d_name)*sizeof(char));
 //       strcpy(set->name, entry->d_name);
       printf("method: %i \n", header.method);
-      if (collections[header.method][header.accept] == 0) {
-	collections[header.method][header.accept] = new FeatureCollection(&header);
-	printf("Created new collection for method %i and accept %i \n", header.method, header.accept);
+      printf("qp range: %i \n", header.qp_range);
+      if (header.method == 0) {
+	if (cleanSet == 0) {
+	  printf("cleanSet shouldn't be null from now on! %s ", str);
+	  cleanSet = openFeatureSet(str);
+	  if (cleanSet != 0)
+	    printf("indeed! \n");
+	} else {
+	  newFeatureFile(cleanSet, str);
+	}
+      } else {
+	if (collections[header.method][header.accept] == 0) {
+	  collections[header.method][header.accept] = new FeatureCollection(&header);
+	  printf("Created new collection for method %i and accept %i \n", header.method, header.accept);
+	}
+        collections[header.method][header.accept]->addFeatureFile(str, &header);
       }
-      collections[header.method][header.accept]->addFeatureFile(str, &header);
 /*      printf("[%i][%i][%i][%i] = %i \n", header.video_bitrate, header.pair, header.method, header.accept, collections[header.video_bitrate][header.pair][header.method][header.accept]);
       if ((((collections[header.video_bitrate])[header.pair])[header.method])[header.accept] == 0) {
 	collections[header.video_bitrate][header.pair][header.method][header.accept] = new FeatureCollection(&header);
@@ -276,6 +305,10 @@ FeatureCollection::Iterator* StegoModel::getFeatureIterator(int video_birate, in
     return collections[method][accept]->iterator();
   }
   return 0;
+}
+
+featureSet* StegoModel::getCleanSet() {
+  return cleanSet;
 }
 
 

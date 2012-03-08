@@ -191,15 +191,16 @@ int readVector(stegoContext *steg, featureSet *set, double *vec) {
   return read;
 }
 
-int readVectorL2(stegoContext* steg, featureSet* set, double* vec) {
+int readVectorL2(stegoContext *steg, featureSet *set, double *vec) {
   int read;
   double norm;
   
-  read = readVector(set, vec);
-  CUBLAS_CALL( cublasSetVector(set->dim, sizeof(double), vectors + r*dim, 1, v1, 1));
-  CUBLAS_CALL( cublasDnrm2(steg->gpu_c->handle, dim, v1, 1, &norm));
+  read = readVector(steg, set, vec);
+  CUBLAS_CALL( cublasSetVector(set->dim, sizeof(double), vec, 1, set->vec_g, 1));
+  CUBLAS_CALL( cublasDnrm2(steg->gpu_c->handle, set->dim, set->vec_g, 1, &norm));
   norm = 1./norm;
-  CUBLAS_CALL( cublasDscal(steg->gpu_c->handle, dim, &norm, v1, 1));
+  CUBLAS_CALL( cublasDscal(steg->gpu_c->handle, set->dim, &norm, set->vec_g, 1));
+  CUBLAS_CALL( cublasGetVector(set->dim, sizeof(double), set->vec_g, 1, vec, 1));
   
   return read;
 }

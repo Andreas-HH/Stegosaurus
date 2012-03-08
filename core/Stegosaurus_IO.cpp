@@ -27,9 +27,18 @@ int readHeader(FILE *file, featureHeader *header) {
   fread(&header->qp_range, sizeof(char), 1, file);
 //   printf("range: %i \n", header->qp_range);
   
-  for (i = 0; i < 16; i++) fread(&header->ranges[0][0]+i, sizeof(unsigned char), 1, file);
-  for (i = 0; i < 4; i++)  fread(&header->ranges[1][0]+i, sizeof(unsigned char), 1, file);
-  for (i = 0; i < 15; i++) fread(&header->ranges[2][0]+i, sizeof(unsigned char), 1, file);
+  if (header->pair) {
+    fread(&header->ranges[0][0], sizeof(unsigned char), 1, file);
+    fread(&header->ranges[0][1], sizeof(unsigned char), 1, file);
+    fread(&header->ranges[1][0], sizeof(unsigned char), 1, file);
+    fread(&header->ranges[1][1], sizeof(unsigned char), 1, file);
+    fread(&header->ranges[2][0], sizeof(unsigned char), 1, file);
+    fread(&header->ranges[2][1], sizeof(unsigned char), 1, file);
+  } else {
+    for (i = 0; i < 16; i++) fread(&header->ranges[0][0]+i, sizeof(unsigned char), 1, file);
+    for (i = 0; i < 4; i++)  fread(&header->ranges[1][0]+i, sizeof(unsigned char), 1, file);
+    for (i = 0; i < 15; i++) fread(&header->ranges[2][0]+i, sizeof(unsigned char), 1, file);
+  }
   
   return 0;
 }

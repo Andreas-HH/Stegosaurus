@@ -12,6 +12,7 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <queue>
 // #include <unordered_map>
 
 #define CUBLAS_CALL(x) switch (x) {       \
@@ -52,7 +53,7 @@
 
 using namespace std;
 
-const int QP_RANGE = 8;
+const int QP_RANGE = 20;
 const int MAX_FILES = 20;
 const int num_coefs[] = {16, 4, 15};
 
@@ -205,8 +206,9 @@ public:
   void addView(StegoView *view);
   void openDirectory(const char* path);
   void estimateMus();
-  void doMMD(featureSet *clean, featureSet *stego);
+  double doMMD(featureSet* clean, featureSet* stego);
   void setFeatures(featureSet *set);
+  featureSet* getCleanSet(); // there must be some class-frontend eventually to allow DB!!!
   
   int getDimension();
   double* getMaxVector();                    // Vector of maximum elements
@@ -225,6 +227,7 @@ protected:
   FeatureCollection *collections[10][8];           // [method][accept] ... [0] = clean, [1] = plusminus1, ... 
 //   map< int, vector< map< int, vector< FeatureCollection* > > > > collections; // video_bitrate -> hist/pair -> method -> accept
   stegoContext *steg;
+  featureSet *cleanSet;
   void modelChanged();                       // asks all views to update themselves
   void progressChanged(double p);
   void collectionChanged();
@@ -249,6 +252,7 @@ extern "C" {
   int readVector(stegoContext* steg, featureSet* set, double* vec);
   int readVectorL2(stegoContext* steg, featureSet* set, double* vec);
   
+  void loadVectorsMMD(stegoContext* steg, mmdContext& mc);
   void estimateGamma(stegoContext* steg, mmdContext *mc);
   void estimateMMD(stegoContext *steg, mmdContext *mc);
   double applyKernel(stegoContext* steg, double gamma, int dim, double* v1_g, double* v2_g, double* temp_g);
