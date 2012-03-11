@@ -89,9 +89,12 @@ typedef struct featureSet {
   int gpu_matrix_width;                      // max number of matrix column in gpu memory
   int num_files;
   int current_file;
+  long *vsPerFile;
   FILE **files;
   char *name;
+  long dataOffset;
 
+  double *vec;
   double *vec_g;
   double *ones_g;
   double *max_vec;                           // vector of maximum entries
@@ -100,12 +103,6 @@ typedef struct featureSet {
   double divM;    
   myGaussian* gauss;
 } featureSet;
-
-typedef struct gpuContext {
-  int threads_per_block;
-  int num_streams;
-  cublasHandle_t handle;
-} gpuContext;
 
 typedef struct klContext {
   int dim;
@@ -120,21 +117,33 @@ typedef struct klContext {
 
 typedef struct mmdContext {
   int n;
+  int cache;
   double gamma;
   double mmd;
   featureSet *clean;
   featureSet *stego;
-  double *stego_vectors;
-  double *clean_vectors;
-  double *v1_g;
-  double *v2_g;
+  double *clean_vectors_down_g;
+  double *clean_vectors_right_g;
+  double *stego_vectors_down_g;
+  double *stego_vectors_right_g;
+//   double *clean_vectors;
+  double *v_g;
+//   double *v2_g;
   double *temp_g;
   double *vectors_g;
 } mmdContext;
 
+typedef struct gpuContext {
+  int threads_per_block;
+  int num_streams;
+  long doublesOnGPU;
+  cublasHandle_t handle;
+} gpuContext;
+
 typedef struct stegoContext {
   gpuContext *gpu_c;                         // might contain multiple cublas handles later (or multiple gpucontexts, we will see...)
   featureSet *features;                      // just have an array of handles here?
+  long doublesInRAM;
 //   myGaussian *clean_gauss;                   // shared among stegoContexts, only read though! if multiple contexts are loaded at all
 //   myGaussian *stego_gauss;                   // doesn't store inverse or QR.
 } stegoContext;
@@ -228,6 +237,7 @@ protected:
 //   map< int, vector< map< int, vector< FeatureCollection* > > > > collections; // video_bitrate -> hist/pair -> method -> accept
   stegoContext *steg;
   featureSet *cleanSet;
+  mmdContext *mc;
   void modelChanged();                       // asks all views to update themselves
   void progressChanged(double p);
   void collectionChanged();
@@ -237,6 +247,7 @@ protected:
 // void storeGaussian(char *path, myGaussian *gauss);
 int readHeader(FILE *file, featureHeader *header);
 int closeFeatureSet(featureSet *set);
+int jumpToVector(featureSet *set, long vecnum);
 int newFeatureFile(featureSet *set, const char *path);
 void stegoRewind(featureSet *set);
 void pathConcat(const char* a, const char* b, char *result);
@@ -252,9 +263,10 @@ extern "C" {
   int readVector(stegoContext* steg, featureSet* set, double* vec);
   int readVectorL2(stegoContext* steg, featureSet* set, double* vec);
   
-  void loadVectorsMMD(stegoContext* steg, mmdContext& mc);
-  void estimateGamma(stegoContext* steg, mmdContext *mc);
-  void estimateMMD(stegoContext *steg, mmdContext *mc);
+  void initMMD(stegoContext* steg, mmdContext& mc);
+  void closeMMD(mmdContext& mc);
+  void estimateGamma(stegoContext* steg, mmdContext& mc);
+  void estimateMMD(stegoContext* steg, mmdContext& mc);
   double applyKernel(stegoContext* steg, double gamma, int dim, double* v1_g, double* v2_g, double* temp_g);
   
   int estimateSigma(stegoContext *steg);

@@ -48,6 +48,7 @@ int newFeatureFile(featureSet* set, const char* path) {
   int dim = 0;
   int read;
   int vec[set->dim];
+  long localM = 0l;
   FILE *file;// = fopen(path, "r");
   featureHeader header;
     
@@ -72,7 +73,9 @@ int newFeatureFile(featureSet* set, const char* path) {
 //   }
   
   while ((read = fread(vec, sizeof(int), dim, file))>0) // && M<10000
-    set->M++;
+    localM++;
+  set->M += (int) localM;
+  set->vsPerFile[set->num_files] = localM;
   set->divM = 1./set->M;
   rewind(file);
   readHeader(file, &header);
@@ -82,17 +85,38 @@ int newFeatureFile(featureSet* set, const char* path) {
   return 0;
 }
 
+int jumpToVector(featureSet *set, long vecnum) {
+  int i;
+  long seenvs = 0l;
+  
+//   printf("doing some jump to vec %i... %i \n", vecnum, set->num_files);
+  for (i = 0; seenvs <= vecnum && i < set->num_files; i++) {
+    seenvs += set->vsPerFile[i];
+  }
+  seenvs -= set->vsPerFile[--i];
+  if (i == set->num_files) {
+//     printf("trying to jump out of range! \n");
+    return 1;
+  }
+//   printf("i = %i, seen %i vectors, will jump to pos %i \n", i, seenvs, vecnum-seenvs);
+  set->current_file = i;
+  fseek(set->files[set->current_file], set->dataOffset + (vecnum-seenvs)*(long)set->dim, SEEK_SET);
+//   printf("Done. \n");
+//   fsetpos(set->current_file, 
+  return 0;
+}
 
 void stegoRewind(featureSet *set) {
   int i;
-  featureHeader header;
-  
+//   featureHeader header;
+//   
   for (i = 0; i < set->num_files; i++) {
-    rewind(set->files[i]);
-    readHeader(set->files[i], &header);
+//     fsetpos(set->files[i], &set->dataOffset);
+    fseek(set->files[i], set->dataOffset, SEEK_SET);
+//     rewind(set->files[i]);
+//     readHeader(set->files[i], &header);
   }
-  set->current_file = 0;
-//   fread(&dim, sizeof(int), 1, set->files[set->current_file]);
+//   set->current_file = 0;
 }
 
 // void storeGaussian(char* path, myGaussian* gauss) {

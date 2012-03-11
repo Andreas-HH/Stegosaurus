@@ -116,6 +116,7 @@ StegoModel::StegoModel() {
   ranges = 0;
   steg = init_stego();
   cleanSet = 0;
+  mc = 0;
 //   for (i = 0; i < 10; i++) {
 //     for (j = 0; j < 8; j++) {
 //       collections[i][j] = 0;
@@ -124,6 +125,7 @@ StegoModel::StegoModel() {
 }
 
 StegoModel::~StegoModel() {
+  if (mc != 0) closeMMD(*mc);
   close_stego(steg);
 }
 
@@ -148,14 +150,19 @@ void StegoModel::estimateMus() {
 
 // we don't want to give sets directly, rather indices inside the collection
 double StegoModel::doMMD(featureSet *clean, featureSet *stego) {
-  mmdContext mc;
-  mc.clean = clean;
-  mc.stego = stego;
-  loadVectorsMMD(steg, mc);
-  estimateGamma(steg, &mc);
-  estimateMMD(steg, &mc);
+//   mmdContext mc;
+  if (mc == 0) {
+    mc = (mmdContext*) malloc(sizeof(mmdContext));
+    mc->clean = clean;
+    mc->stego = stego;
+    initMMD(steg, *mc);
+    estimateGamma(steg, *mc);
+  }
+  mc->stego = stego;
+  estimateMMD(steg, *mc);
+  printf("used gamma: %g \n", mc->gamma);
   
-  return mc.mmd;
+  return mc->mmd;
 }
 
 

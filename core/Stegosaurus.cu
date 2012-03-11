@@ -31,6 +31,7 @@ int closeFeatureSet(featureSet *set) {
 //   CUDA_CALL( cudaFree(set->vec_g));
 //   CUDA_CALL( cudaFree(set->max_g));
 //   if (set->gauss->mu != NULL)             free (set->gauss->mu);
+  if (set->vec != NULL)                   CUDA_CALL( cudaFreeHost(set->vec));
   if (set->gauss->mu != NULL)             CUDA_CALL( cudaFree(set->gauss->mu));
   if (set->max_vec != NULL)               CUDA_CALL( cudaFree(set->max_vec));
   if (set->qp_vec != NULL)                CUDA_CALL( cudaFree(set->qp_vec));
@@ -52,6 +53,8 @@ gpuContext* init_gpu() {
   CUBLAS_CALL( cublasCreate(&(gp->handle)));
   gp->threads_per_block = prop.maxThreadsPerBlock;
   gp->num_streams = 4;
+  gp->doublesOnGPU = prop.totalGlobalMem * 3l / 4l / (long) sizeof(double);
+//   printf("%i doubles in gpu memory are ok! \n", gp->doublesOnGPU);
 //   gp->qr_cache = 10;
 //   printf("%i \n", gp->threads_per_block);
 
@@ -62,6 +65,8 @@ stegoContext* init_stego() {
   stegoContext *steg = (stegoContext*) malloc(sizeof(stegoContext));
   steg->gpu_c = init_gpu();
   steg->features = NULL;
+  steg->doublesInRAM = 5l * 1073741824l / (long) sizeof(double);
+//   printf("%i doubles in main memory! \n", steg->doublesInRAM);
 
   return steg;
 }
@@ -81,6 +86,7 @@ featureSet* openFeatureSet(const char *path) {
   int dim = 0;
   int read;
   int M;
+  long posZero;
   double *vec;//, *qp, *max;// *mu_g, *vec_g, *max, *max_g, *qp_g, *qp;
   FILE *file = fopen(path, "r");
   featureHeader header;
@@ -90,6 +96,8 @@ featureSet* openFeatureSet(const char *path) {
   if (file == NULL) return NULL;
   featureSet *set = (featureSet*) malloc(sizeof(featureSet));
   readHeader(file, &header);
+//   fgetpos(file, &posZero);
+  posZero = ftell(file);
   if (header.pair) {
     dim = (2*header.ranges[0][0]+1)*(2*header.ranges[0][1]+1) + 
           (2*header.ranges[1][0]+1)*(2*header.ranges[1][1]+1) + 
@@ -127,9 +135,11 @@ featureSet* openFeatureSet(const char *path) {
   set->divM = 1./((double) M);
 //   set->kl_div = -1.;                                // some invalid value
   set->files = (FILE**) malloc(MAX_FILES*sizeof(FILE*));//file;
+  set->vsPerFile = (long*) malloc(MAX_FILES*sizeof(long));
   set->files[0] = file;
   set->num_files = 1;
   set->current_file = 0;
+  set->dataOffset = posZero;
 //   set->current_feature = vec;
 //   set->max_vec = max;
 //   set->qp_vec = qp;
@@ -145,6 +155,7 @@ featureSet* openFeatureSet(const char *path) {
   set->gauss->qr_diag = NULL;
   set->gauss->dim = dim;
   set->gpu_matrix_width = dim/2+1;                      // maybe wish to do something smarter here!
+  CUDA_CALL( cudaHostAlloc(&set->vec, dim*sizeof(double), cudaHostAllocDefault));
   CUDA_CALL( cudaMalloc(&set->vec_g, dim*sizeof(double)));
   CUDA_CALL( cudaMalloc(&set->ones_g, dim*sizeof(double)));
   initDArray2<<<BLOCKS(dim, 1024), 1024>>>(set->ones_g, dim, 1.);
@@ -166,6 +177,7 @@ int readVector(stegoContext *steg, featureSet *set, double *vec) {
   
   while (read == 0 && set->current_file < set->num_files) {
     read = fread(vec_i, sizeof(int), set->dim, set->files[set->current_file]);
+    if (read != set->dim) printf("Read the following number of bytes: %i \n", read);
     for (i = 0; i < set->dim; i++) {
       vec[i] = (double) vec_i[i];
     }
@@ -191,16 +203,17 @@ int readVector(stegoContext *steg, featureSet *set, double *vec) {
   return read;
 }
 
-int readVectorL2(stegoContext *steg, featureSet *set, double *vec) {
+// reads directly into gpu memory
+int readVectorL2(stegoContext *steg, featureSet *set, double *vec_g) {
   int read;
   double norm;
   
-  read = readVector(steg, set, vec);
-  CUBLAS_CALL( cublasSetVector(set->dim, sizeof(double), vec, 1, set->vec_g, 1));
-  CUBLAS_CALL( cublasDnrm2(steg->gpu_c->handle, set->dim, set->vec_g, 1, &norm));
+  read = readVector(steg, set, set->vec);
+  CUBLAS_CALL( cublasSetVector(set->dim, sizeof(double), set->vec, 1, vec_g, 1));
+  CUBLAS_CALL( cublasDnrm2(steg->gpu_c->handle, set->dim, vec_g, 1, &norm));
   norm = 1./norm;
-  CUBLAS_CALL( cublasDscal(steg->gpu_c->handle, set->dim, &norm, set->vec_g, 1));
-  CUBLAS_CALL( cublasGetVector(set->dim, sizeof(double), set->vec_g, 1, vec, 1));
+  CUBLAS_CALL( cublasDscal(steg->gpu_c->handle, set->dim, &norm, vec_g, 1));
+//   CUBLAS_CALL( cublasGetVector(set->dim, sizeof(double), set->vec_g, 1, vec, 1));
   
   return read;
 }
