@@ -29,7 +29,7 @@ FeatureCollection::~FeatureCollection() {
   }
 }
 
-int FeatureCollection::addFeatureFile(const char *path, featureHeader *header) {
+int FeatureCollection::addFeatureFile(const char* path, featureHeader* header, stegoContext* steg) {
   int bin;// = (int) (header->rate/BIN_WIDTH + 0.5);
 //   printf("rate = %g, bin = %i \n", header->rate, bin);
   featureSet *set;
@@ -46,18 +46,18 @@ int FeatureCollection::addFeatureFile(const char *path, featureHeader *header) {
 //   } else {
     bin = (int) (header->rate/BIN_WIDTH + 0.5);
     if (collection[bin] == 0) {
-      printf("no collection for this yet! \n");
-      set = openFeatureSet(path);
+//       printf("no collection for this yet! \n");
+      set = openFeatureSet(path, steg);
       set->rate = header->rate;
       set->id = bin;
       collection[bin] = set;
-      printf("just defined collection[%i] \n", bin);
+//       printf("just defined collection[%i] \n", bin);
     } else {
-      printf("There already is something \n");
+//       printf("There already is something \n");
   //     newFeatureFile(collection[bin], path);
     }
 //   }
-  printf("added new feature file \n");
+//   printf("added new feature file \n");
 }
 
 int FeatureCollection::getNumSets() {
@@ -261,7 +261,7 @@ void StegoModel::openDirectory(const char* path) {
       if (header.method == 0) {
 	if (cleanSet == 0) {
 	  printf("cleanSet shouldn't be null from now on! %s ", str);
-	  cleanSet = openFeatureSet(str);
+	  cleanSet = openFeatureSet(str, steg);
 	  if (cleanSet != 0)
 	    printf("indeed! \n");
 	} else {
@@ -272,7 +272,7 @@ void StegoModel::openDirectory(const char* path) {
 	  collections[header.method][header.accept] = new FeatureCollection(&header);
 	  printf("Created new collection for method %i and accept %i \n", header.method, header.accept);
 	}
-        collections[header.method][header.accept]->addFeatureFile(str, &header);
+        collections[header.method][header.accept]->addFeatureFile(str, &header, steg);
       }
 /*      printf("[%i][%i][%i][%i] = %i \n", header.video_bitrate, header.pair, header.method, header.accept, collections[header.video_bitrate][header.pair][header.method][header.accept]);
       if ((((collections[header.video_bitrate])[header.pair])[header.method])[header.accept] == 0) {

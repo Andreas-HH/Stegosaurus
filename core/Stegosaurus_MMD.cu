@@ -61,11 +61,11 @@ void estimateGamma(stegoContext *steg, mmdContext& mc) {
 //     printf("nw in position: %i / %i \n", pos, M);
     blockwidth = min(mc.cache, M-pos);
     for (i = 0; i < blockwidth; i++) {
-      readVectorL2(steg, mc.clean, mc.clean_vectors_down_g + i*dim);
+      readVectorRescaled(steg, mc.clean, mc.clean_vectors_down_g + i*dim);
     }
     for (i = 0; i < M; i++) {
 //       if (i % 100 == 0) printf("i = %i, blockwidth = %i \n", i, blockwidth);
-      readVectorL2(steg, mc.stego, mc.v_g);
+      readVectorRescaled(steg, mc.stego, mc.v_g);
       for (j = 0; j < blockwidth; j++) {
 	if (pos+j == i) continue;
 	CUDA_CALL( cudaMemcpy(mc.temp_g, mc.v_g, dim*sizeof(double), cudaMemcpyDeviceToDevice));
@@ -114,27 +114,27 @@ void estimateMMD(stegoContext *steg, mmdContext& mc) {
   
   for (pos_x = 0l; pos_x < (long) M; pos_x += mc.cache) {
     bw_x = min(mc.cache, M-(int)pos_x);
-    printf("clean ");
+    printf("clean [%i] \n", pos_x);
     jumpToVector(mc.clean, pos_x);
-    printf("stego ");
+    printf("stego [%i] \n", pos_x);
     jumpToVector(mc.stego, pos_x);
     for (i = 0; i < bw_x; i++) {
-      readVectorL2(steg, mc.clean, mc.clean_vectors_down_g + i*dim);
+      readVectorRescaled(steg, mc.clean, mc.clean_vectors_down_g + i*dim);
     } // better to one after the other, might be quicker
     for (i = 0; i < bw_x; i++) {
-      readVectorL2(steg, mc.stego, mc.stego_vectors_down_g + i*dim);
+      readVectorRescaled(steg, mc.stego, mc.stego_vectors_down_g + i*dim);
     }
     for (pos_y = 0l; pos_y < (long) (M+mc.cache-1); pos_y += mc.cache) {
       bw_y = min(mc.cache, M-(int)pos_y);
-      printf("clean ");
+      printf(" clean [%i] \n", pos_y);
       jumpToVector(mc.clean, pos_y);
-      printf("stego ");
+      printf(" stego [%i] \n", pos_y);
       jumpToVector(mc.stego, pos_y);
       for (i = 0; i < bw_x; i++) {
-        readVectorL2(steg, mc.clean, mc.clean_vectors_right_g + i*dim);
+        readVectorRescaled(steg, mc.clean, mc.clean_vectors_right_g + i*dim);
       }
       for (i = 0; i < bw_x; i++) {
-        readVectorL2(steg, mc.stego, mc.stego_vectors_right_g + i*dim);
+        readVectorRescaled(steg, mc.stego, mc.stego_vectors_right_g + i*dim);
       }
       for (j = 0; j < bw_x; j++) {
 	for (k = 0; k < bw_y; k++) {

@@ -94,10 +94,14 @@ typedef struct featureSet {
   char *name;
   long dataOffset;
 
+  int *counts;                               // want to make this long as soon as compression works
   double *vec;
   double *vec_g;
   double *ones_g;
+  double *max_g;
+  double *min_g;                             // usually is identically zero, but better be sure
   double *max_vec;                           // vector of maximum entries
+  double *min_vec;
   double *qp_vec;
   double rate;
   double divM;    
@@ -173,7 +177,7 @@ public:
   
   int getNumSets();
   int getCurrentSet();
-  int addFeatureFile(const char *path, featureHeader *header);
+  int addFeatureFile(const char *path, featureHeader *header, stegoContext *steg);
   featureSet* getFeatureSet(int index);
   featureSet* nextFeatureSet();
   FeatureCollection::Iterator* iterator();
@@ -190,28 +194,7 @@ class StegoModel {
 public:
   StegoModel();
   ~StegoModel();
-  
-//   class Iterator {
-//   public:
-//     Iterator(StegoModel *model);
-// //     void increaseLevel();
-// //     void decreaseLevel();
-//     int getLevel0();
-//     int getLevel1();
-//     int getLevel2();
-//     int getLevel3();
-// //     FeatureCollection::Iterator *nextCollectionIterator();
-//     bool hasNext();
-//   protected:
-//     int level;
-//     int level1, level3;
-//     map< int, vector< map< int, vector< FeatureCollection* > > > >::iterator *level0iter;
-//     vector< map< int, vector< FeatureCollection* > > >::iterator             *level1iter;
-//     map< int, vector< FeatureCollection* > >::iterator                       *level2iter;
-//     vector< FeatureCollection* >::iterator                                   *level3iter;
-//     void next();
-//   };
-  
+ 
   void addView(StegoView *view);
   void openDirectory(const char* path);
   void estimateMus();
@@ -259,9 +242,13 @@ extern "C" {
   void close_gpu(gpuContext *gp);
   int estimateMu(stegoContext *steg);
   void printPointerInfo(void *ptr);
-  featureSet* openFeatureSet(const char* path);
-  int readVector(stegoContext* steg, featureSet* set, double* vec);
-  int readVectorL2(stegoContext* steg, featureSet* set, double* vec);
+  featureSet* openFeatureSet(const char* path, stegoContext *steg);
+  int readCountVector(double *data, int *cache, int dim, FILE *file);
+  int readCounts(stegoContext* steg, featureSet* set, double* vec);
+  int readVectorRescaled(stegoContext *steg, featureSet *set, double *vec_g);
+  int readVectorL1D(stegoContext *steg, featureSet *set, double *vec_g);
+  int readVectorL2(stegoContext *steg, featureSet *set, double *vec_g);
+  void scaleL1D(stegoContext* steg, int dim, double* vec, double* vec_g, double* ones_g);
   
   void initMMD(stegoContext* steg, mmdContext& mc);
   void closeMMD(mmdContext& mc);
