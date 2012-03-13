@@ -243,6 +243,7 @@ int readVectorRescaled(stegoContext *steg, featureSet *set, double *vec_g) {
   int tpb = steg->gpu_c->threads_per_block;
 
   CUBLAS_CALL( cublasSetVector(set->dim, sizeof(double), set->vec, 1, vec_g, 1));
+  scaleL1D(steg, set->dim, set->vec, vec_g, set->ones_g);
   rescaleVec<<<BLOCKS(set->dim, tpb), tpb>>>(set->dim, vec_g, set->min_g, set->max_g);
   
   return read;
