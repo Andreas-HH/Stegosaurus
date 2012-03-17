@@ -15,6 +15,8 @@
 #include <queue>
 // #include <unordered_map>
 
+#define SQUARE(x) (x)*(x)
+
 #define CUBLAS_CALL(x) switch (x) {       \
     case CUBLAS_STATUS_SUCCESS:           \
       break;                              \
@@ -122,6 +124,8 @@ typedef struct klContext {
 typedef struct mmdContext {
   int n;
   int cache;
+  int kernel_blockwidth;
+  int kernel_gridwidth;
   double gamma;
   double mmd;
   featureSet *clean;
@@ -130,6 +134,10 @@ typedef struct mmdContext {
   double *clean_vectors_right_g;
   double *stego_vectors_down_g;
   double *stego_vectors_right_g;
+  double *results_c_vs_c_g;
+  double *results_c_vs_s_g;
+  double *results_s_vs_s_g;
+  double *results;
 //   double *clean_vectors;
   double *v_g;
 //   double *v2_g;
@@ -235,6 +243,17 @@ int newFeatureFile(featureSet *set, const char *path);
 void stegoRewind(featureSet *set);
 void pathConcat(const char* a, const char* b, char *result);
 
+__global__ void initDArray(double *m, int dim, double val);
+__global__ void compareMax(int dim, double *current_max, double *new_features);
+__global__ void compareMin(int dim, double *current_min, double *new_features);
+__global__ void rescaleVec(int dim, double *vec_g, double *min_g, double *max_g);
+
+__global__ void calcGamma(int dim, int bw_x, int bw_y, double* down_g, double* right_g, double* results);
+__global__ void calcMMD(int dim, int bw_x, int bw_y, double minus_gamma, double* down_g, double* right_g, double* results, bool add);
+
+__global__ void subtract(int dim, double *vec, double *mu);
+__global__ void constructQ(double *q, double *diag, double norm, int count);
+
 extern "C" { 
   stegoContext* init_stego();
   gpuContext* init_gpu();
@@ -257,7 +276,7 @@ extern "C" {
   double applyKernel(stegoContext* steg, double gamma, int dim, double* v1_g, double* v2_g, double* temp_g);
   
   int estimateSigma(stegoContext *steg);
-  void constructQ(double *q, double *diag, double norm, int count);
+//   void constructQ(double *q, double *diag, double norm, int count);
   klContext* initKLContext(stegoContext* steg);
   void closeKLContext(klContext *klc);
   void applyQ(cublasHandle_t handle, int dim, double *q, double *vec, double *tmp, double *dotp, double *mintwo);

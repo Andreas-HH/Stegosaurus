@@ -156,7 +156,7 @@ double StegoModel::doMMD(featureSet *clean, featureSet *stego) {
     mc->clean = clean;
     mc->stego = stego;
     initMMD(steg, *mc);
-    estimateGamma(steg, *mc);
+//     estimateGamma(steg, *mc);
   }
   mc->stego = stego;
   estimateMMD(steg, *mc);

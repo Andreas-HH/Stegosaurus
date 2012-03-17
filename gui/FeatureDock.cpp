@@ -61,8 +61,8 @@ void FeatureWidget::updateCollection() {
 	  parent->appendRow(items);
 	  items.clear();
 	  set2 = set;
-// 	  if (set1 != 0 && set2 != 0)
-//             mmds[idx++] = model->doMMD(set1, set2);
+	  if (set1 != 0 && set2 != 0)
+            mmds[idx++] = model->doMMD(set1, set2);
 	}
 	treeModel->appendRow(parent);	
       }

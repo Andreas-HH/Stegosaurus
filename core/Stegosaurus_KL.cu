@@ -9,21 +9,14 @@ __global__ void subtract(int dim, double *vec, double *mu) {
   }
 }
 
-__global__ void initDArray(double *m, int dim, double val) {
-  int idx = threadIdx.x + blockIdx.x*blockDim.x;
-  
-  if (idx < dim)
-    m[idx] = val;
-}
-
-__global__ void compareMax2(int dim, double *current_max, double *new_features) {
-  int idx = threadIdx.x + blockIdx.x*blockDim.x;
-  
-  if (idx < dim) {
-    if (current_max[idx] < new_features[idx])
-      current_max[idx] = new_features[idx];
-  }
-}
+// __global__ void compareMax2(int dim, double *current_max, double *new_features) {
+//   int idx = threadIdx.x + blockIdx.x*blockDim.x;
+//   
+//   if (idx < dim) {
+//     if (current_max[idx] < new_features[idx])
+//       current_max[idx] = new_features[idx];
+//   }
+// }
 
 __global__ void constructQ(double *q, double *diag, double norm, int count) {
   int idx = threadIdx.x + blockIdx.x*blockDim.x;
@@ -98,7 +91,7 @@ int estimateMu(stegoContext *steg) {
 //      else printf("Read something right! \n");
 //      CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
      cublasDaxpy(*handle, dim, &(fs->divM), vec_g, 1, mu_g, 1);     // put divM on gpu?
-     compareMax2<<<BLOCKS(dim,tpb),tpb>>>(dim, max_g, vec_g);
+     compareMax<<<BLOCKS(dim,tpb),tpb>>>(dim, max_g, vec_g);
   }
 //   computeQPHistogram(steg, fs->mu_g, 20, fs->qp_g);
 //   CUBLAS_CALL( cublasGetVector(20, sizeof(double), fs->qp_g, 1, fs->qp_vec, 1));
