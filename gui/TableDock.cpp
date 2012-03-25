@@ -2,7 +2,7 @@
 
 
 StegoTableModel::StegoTableModel(QObject* parent, StegoModel *stegModel): QAbstractTableModel(parent) {
-  dim = stegModel->getDimension();
+  dim = stegModel->getSigmaDim();
   sigma = stegModel->getSigma();
   diag = stegModel->getDiag();
   if (sigma == 0) dim = -1;
@@ -30,7 +30,8 @@ QVariant StegoTableModel::data(const QModelIndex& index, int role) const {
     return int(Qt::AlignRight | Qt::AlignVCenter);
   } else if (role == Qt::DisplayRole) {
     if (index.column() == dim) {
-      return QString("%1").arg(diag[index.row()]);
+//       return QString("%1").arg(diag[index.row()]);
+      return QString("Oh-oh!");
     }
     return QString("%1").arg(sigma[index.row() + dim*index.column()]);
   }
@@ -38,7 +39,8 @@ QVariant StegoTableModel::data(const QModelIndex& index, int role) const {
 }
 
 void StegoTableModel::updateView() {
-  dim = stegModel->getDimension();
+  dim = stegModel->getSigmaDim();
+//   printf("sigmadim = %i \n", dim);
   sigma = stegModel->getSigma();
   if (sigma == 0) dim = -1;
 }

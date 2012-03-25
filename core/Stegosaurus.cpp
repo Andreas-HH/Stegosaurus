@@ -156,10 +156,10 @@ double StegoModel::doMMD(featureSet *clean, featureSet *stego) {
     mc->clean = clean;
     mc->stego = stego;
     initMMD(steg, *mc);
-//     estimateGamma(steg, *mc);
+    estimateGamma(steg, *mc);
   }
   mc->stego = stego;
-  estimateMMD(steg, *mc);
+//   estimateMMD(steg, *mc);
   printf("used gamma: %g \n", mc->gamma);
   
   return mc->mmd;
@@ -354,10 +354,17 @@ FeatureCollection* StegoModel::getCollection() {
   return 0;
 }
 
+int StegoModel::getSigmaDim() {
+  if (mc == 0) return -1;
+  return mc->cache;
+}
+
 double* StegoModel::getSigma() {
-  if (steg->features == NULL) 
-    return NULL;
-  return steg->features->gauss->qr;
+//   if (steg->features == NULL) 
+//     return NULL;
+//   return steg->features->gauss->qr;
+  if (mc == 0) return 0;
+  return mc->results;
 }
 
 double* StegoModel::getDiag() {

@@ -1,26 +1,14 @@
 #include "Stegosaurus.h"
 
 
-__global__ void calcMMD(int dim, int bw_x, int bw_y, double *down_g, double *right_g, double *results) {
-  int i;
+__global__ void gammaKernel(int dim, int offset, int bw_x, int bw_y, double *down_g, double *right_g, double *results) {
   int idx_x = threadIdx.x + blockIdx.x*blockDim.x;
   int idx_y = threadIdx.y + blockIdx.y*blockDim.y;
-  int idx_s = threadIdx.y + threadIdx.x*blockDim.y;
-  int current_dim = blockDim.x * blockDim.y;
-//   int idx_r = idx_x + idx_y*numvec; // one result per block, not per thread!
-//   double current_sum = 0.;
-  __shared__ double current_sums[1024]; // cuda doesn't allow me to use blockDim.x * blockDim.y here ;_;
   double temp;
   
-  if (idx_x < bw_x && idx_y < bw_x) { 
-    current_sums[idx_s] = 0.;
-    // find || x - y || ^2
-    for (i = 0; i < dim; i++) {
-      temp = down_g[idx_y*dim + i] - right_g[idx_x*dim + i];
-      current_sums[idx_s] += temp * temp;
-    }
-    // write to global result array
-    results[idx_y + bw_y*idx_x] = current_sums[idx_s];
+  if (idx_x < bw_x && idx_y < bw_y) { 
+    temp = down_g[idx_y*dim + offset] - right_g[idx_x*dim + offset];
+    results[idx_y + bw_y*idx_x] += temp * temp;//current_sums[idx_s];
   }
 }
 
@@ -73,33 +61,19 @@ void initMMD(stegoContext *steg, mmdContext& mc) {
   int tpb = steg->gpu_c->threads_per_block;
   
   mc.n = mc.clean->M;
-//   mc.cache   = min(mc.n, (int) (steg->gpu_c->doublesOnGPU / (long) dim / 4l)); // 4 input buffers
   mc.kernel_blockwidth = (int) sqrt(steg->gpu_c->threads_per_block);
-  mc.cache   = min(mc.n, (int) (sqrt((long) mc.kernel_blockwidth * steg->gpu_c->doublesOnGPU / 3l + SQUARE(2l*(long)mc.kernel_blockwidth*(long)dim / 3l)) - 2l*(long)mc.kernel_blockwidth*(long)dim / 3l)); // 4 input buffers
+  mc.cache   = min(mc.n, (int) (sqrt(steg->gpu_c->doublesOnGPU / 3l + (long) SQUARE(dim) * 4l / 9l) - (long)dim * 2l / 3l));
   mc.kernel_gridwidth = (mc.cache + mc.kernel_blockwidth-1)/mc.kernel_blockwidth;
-  printf("cache: %i, kbw: %i \n", mc.cache, mc.kernel_blockwidth);
+//   printf("cache: %i, kbw: %i \n", mc.cache, mc.kernel_blockwidth);
   
   CUDA_CALL( cudaMalloc(&mc.clean_vectors_down_g, dim*mc.cache*sizeof(double)));
   CUDA_CALL( cudaMalloc(&mc.clean_vectors_right_g, dim*mc.cache*sizeof(double)));
   CUDA_CALL( cudaMalloc(&mc.stego_vectors_down_g, dim*mc.cache*sizeof(double)));
   CUDA_CALL( cudaMalloc(&mc.stego_vectors_right_g, dim*mc.cache*sizeof(double)));
-  CUDA_CALL( cudaMalloc(&mc.results_c_vs_c_g, mc.kernel_gridwidth*mc.kernel_gridwidth*sizeof(double)));
-  CUDA_CALL( cudaMalloc(&mc.results_c_vs_s_g, mc.kernel_gridwidth*mc.kernel_gridwidth*sizeof(double)));
-  CUDA_CALL( cudaMalloc(&mc.results_s_vs_s_g, mc.kernel_gridwidth*mc.kernel_gridwidth*sizeof(double)));
-  CUDA_CALL( cudaHostAlloc(&mc.results, mc.kernel_gridwidth*mc.kernel_gridwidth*sizeof(double), cudaHostAllocDefault));
-//   CUDA_CALL( cudaHostAlloc(&mc.stego_vectors, dim*mc.cache*sizeof(double), cudaHostAllocDefault));
-  CUDA_CALL( cudaMalloc(&mc.v_g, dim*sizeof(double)));
-//   CUDA_CALL( cudaMalloc(&mc.v2_g, dim*sizeof(double)));
-  CUDA_CALL( cudaMalloc(&mc.temp_g, dim*sizeof(double)));
-  
-//   initDArray<<<BLOCKS(mc.kernel_gridwidth*mc.kernel_gridwidth, tpb), tpb>>>(mc.results_c_vs_c_g, mc.kernel_gridwidth*mc.kernel_gridwidth, 1.);
-  
-//   for (i = 0; i < mc.n; i++) {
-//     readVectorL2(steg, mc.clean, mc.clean_vectors+i*dim);
-//     readVectorL2(steg, mc.stego, mc.stego_vectors+i*dim);
-//   }
-//   stegoRewind(mc.clean);
-//   stegoRewind(mc.stego);
+  CUDA_CALL( cudaMalloc(&mc.results_c_vs_c_g, mc.cache*mc.cache*sizeof(double)));
+  CUDA_CALL( cudaMalloc(&mc.results_c_vs_s_g, mc.cache*mc.cache*sizeof(double)));
+  CUDA_CALL( cudaMalloc(&mc.results_s_vs_s_g, mc.cache*mc.cache*sizeof(double)));
+  CUDA_CALL( cudaHostAlloc(&mc.results, mc.cache*mc.cache*sizeof(double), cudaHostAllocDefault));
 }
 
 void closeMMD(mmdContext& mc) {
@@ -110,54 +84,55 @@ void closeMMD(mmdContext& mc) {
   CUDA_CALL( cudaFree(mc.results_c_vs_c_g));
   CUDA_CALL( cudaFree(mc.results_c_vs_s_g));
   CUDA_CALL( cudaFree(mc.results_s_vs_s_g));
-  CUDA_CALL( cudaFree(mc.v_g));
-  CUDA_CALL( cudaFree(mc.temp_g));
   CUDA_CALL( cudaFreeHost(mc.results));
-//   CUDA_CALL( cudaFreeHost(mc.vectors));
-//   CUDA_CALL( cudaFree(mc.vectors_g));
-//   CUDA_CALL( cudaFree(mc.v_g));
-//   CUDA_CALL( cudaFree(mc.temp_g));
+}
+
+void launchGammaKernel(mmdContext& mc, int dim, int bw_x, int bw_y, double* down_g, double* right_g, double* results_g) {
+  int i;
+  dim3 grid, block;
+  
+  grid = dim3(BLOCKS(bw_x, mc.kernel_blockwidth), BLOCKS(bw_y, mc.kernel_blockwidth));    
+  block = dim3(mc.kernel_blockwidth, mc.kernel_blockwidth);
+  for (i = 0; i < dim; i++) {
+    gammaKernel<<<grid,block>>>(dim, i, bw_x, bw_y, mc.clean_vectors_down_g, mc.clean_vectors_right_g, mc.results_c_vs_c_g);
+  }
 }
 
 void estimateGamma(stegoContext *steg, mmdContext& mc) {
   int i, j;
-  int blockwidth, pos;
-//   int iterations;
-  double norm;
-//   double *vectors = mc->vectors;
-//   double *v1 = mc->v_g;//, *v2 = mc->v2_g;
-  double min1 = -1;
+  int bw_x, bw_y, pos_x, pos_y;
+  int tpb = steg->gpu_c->threads_per_block;
   featureSet *cleanSet = mc.clean;
-//   int r;
   int M = mc.n;
   int dim = cleanSet->dim;
   priority_queue< double > q;
   
-//   printf("cache size: %i, M= %i \n", mc.cache, M);
-  // could use 4 times the buffer size here
-//   iterations = (M+mc.cache-1)/mc.cache;
-//   printf("will need %i iterations, caching %i vectors \n", iterations, mc.cache);
-  for (pos = 0; pos < M; pos += mc.cache) {
-//     printf("nw in position: %i / %i \n", pos, M);
-    blockwidth = min(mc.cache, M-pos);
-    for (i = 0; i < blockwidth; i++) {
-      readVectorRescaled(steg, mc.clean, mc.clean_vectors_down_g + i*dim);
+  for (pos_x = 0l; pos_x < (long) M; pos_x += mc.cache) {
+    bw_x = min(mc.cache, M-(int)pos_x);
+    jumpToVector(mc.clean, pos_x);
+    for (i = 0; i < bw_x; i++) {
+      readVectorL2(steg, mc.clean, mc.clean_vectors_right_g + i*dim);
     }
-    for (i = 0; i < M; i++) {
-//       if (i % 100 == 0) printf("i = %i, blockwidth = %i \n", i, blockwidth);
-      readVectorRescaled(steg, mc.stego, mc.v_g);
-      for (j = 0; j < blockwidth; j++) {
-	if (pos+j == i) continue;
-	CUDA_CALL( cudaMemcpy(mc.temp_g, mc.v_g, dim*sizeof(double), cudaMemcpyDeviceToDevice));
-	// maybe I should write my own subtraction kernel to abvoid the unnecessary multiplication by 1
-	CUBLAS_CALL( cublasDaxpy(steg->gpu_c->handle, dim, &min1, mc.clean_vectors_down_g+j*dim, 1, mc.temp_g, 1));
-        CUBLAS_CALL( cublasDdot(steg->gpu_c->handle, dim, mc.temp_g, 1, mc.temp_g, 1, &norm));
-        q.push(norm);
+    for (pos_y = 0l; pos_y < (long) M; pos_y += mc.cache) {
+      bw_y = min(mc.cache, M-(int)pos_y);
+      jumpToVector(mc.clean, pos_y);
+      for (i = 0; i < bw_y; i++) {
+        readVectorL2(steg, mc.clean, mc.clean_vectors_down_g + i*dim);
+      }
+      printf("launching kernel with parameters (%i, %i), (%i, %i), bw_x = %i, bw_y = %i \n", BLOCKS(bw_x, mc.kernel_blockwidth), BLOCKS(bw_y, mc.kernel_blockwidth), mc.kernel_blockwidth, mc.kernel_blockwidth, bw_x, bw_y);
+      initDArray(mc.results_c_vs_c_g, SQUARE(mc.cache), tpb, 0.);
+      launchGammaKernel(mc, dim, bw_x, bw_y, mc.clean_vectors_down_g, mc.clean_vectors_right_g, mc.results_c_vs_c_g);
+      CUBLAS_CALL( cublasGetVector(SQUARE(mc.cache), sizeof(double), mc.results_c_vs_c_g, 1, mc.results, 1));
+      for (i = 0; i < bw_x; i++) {
+	for (j = 0; j < bw_y; j++) {
+	  if (pos_x + i == pos_y + j) continue;
+	  q.push(mc.results[j + i*bw_y]);
+	}
       }
     }
-    stegoRewind(mc.stego);
   }
   stegoRewind(mc.clean);
+  stegoRewind(mc.stego);
   
   printf("queue size: %i, M = %i, expcted size: %i \n", q.size(), M, M*(M-1));
   for (i = 0; i < M*(M-1)/2; i++) {
@@ -230,7 +205,7 @@ void estimateMMD(stegoContext *steg, mmdContext& mc) {
 //       }
       gridwidth = (bw_x + mc.kernel_blockwidth-1)/mc.kernel_blockwidth;
       gridheight = (bw_y + mc.kernel_blockwidth-1)/mc.kernel_blockwidth;
-      initDArray<<<BLOCKS(gridwidth*gridheight, tpb), tpb>>>(mc.results_c_vs_c_g, mc.kernel_gridwidth*mc.kernel_gridwidth, 0.);
+      initDArray(mc.results_c_vs_c_g, mc.kernel_gridwidth*mc.kernel_gridwidth, tpb, 0.);
       calcMMD<<<(gridwidth, gridheight), (mc.kernel_blockwidth, mc.kernel_blockwidth)>>>(dim, bw_x, bw_y, -1.*0.2, mc.clean_vectors_down_g, mc.clean_vectors_right_g, mc.results_c_vs_c_g, true);
       calcMMD<<<(gridwidth, gridheight), (mc.kernel_blockwidth, mc.kernel_blockwidth)>>>(dim, bw_x, bw_y, -1.*0.2, mc.stego_vectors_down_g, mc.stego_vectors_right_g, mc.results_c_vs_c_g, true);
       calcMMD<<<(gridwidth, gridheight), (mc.kernel_blockwidth, mc.kernel_blockwidth)>>>(dim, bw_x, bw_y, -1.*0.2, mc.clean_vectors_down_g, mc.stego_vectors_right_g, mc.results_c_vs_c_g, false);
@@ -248,6 +223,7 @@ void estimateMMD(stegoContext *steg, mmdContext& mc) {
       }
       printf("delta mmd: %f \n", temp);
     }
+//     break;
 //     stegoRewind(mc.stego);
   }
   stegoRewind(mc.clean);
