@@ -1,7 +1,7 @@
 #include <Stegosaurus.h>
 
 
-__global__ void initDArray(double *m, int dim, double val) {
+__global__ void initDArrayKernel(double *m, int dim, double val) {
   int idx = threadIdx.x + blockIdx.x*blockDim.x;
   
   if (idx < dim)
@@ -34,6 +34,9 @@ __global__ void rescaleVec(int dim, double *vec_g, double *min_g, double *max_g)
   }
 }
 
+void initDArray(double* m, int dim, int tpb, double val) {
+  initDArrayKernel<<<BLOCKS(dim,tpb),tpb>>>(m, dim, val);
+}
 
 void printPointerInfo(void *ptr) {
   cudaPointerAttributes attr;
@@ -149,9 +152,9 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
   CUDA_CALL( cudaMalloc(&set->max_g, dim*sizeof(double)));
   CUDA_CALL( cudaMalloc(&set->min_g, dim*sizeof(double)));
   CUDA_CALL( cudaMalloc(&set->vec_g, dim*sizeof(double)));
-  initDArray<<<BLOCKS(dim, tpb), tpb>>>(set->max_g, dim, 0.);
-  initDArray<<<BLOCKS(dim, tpb), tpb>>>(set->min_g, dim, INFINITY);
-  initDArray<<<BLOCKS(dim, tpb), tpb>>>(set->ones_g, dim, 1.);
+  initDArray(set->max_g, dim, tpb, 0.);
+  initDArray(set->min_g, dim, tpb, INFINITY);
+  initDArray(set->ones_g, dim, tpb, 1.);
   
   M = 0;
   while ((read = readCountVector(set->vec, set->counts, dim, file))>0) { // && M<10000

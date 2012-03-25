@@ -79,9 +79,9 @@ int estimateMu(stegoContext *steg) {
 //   CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, mu_g, 1));
 //   CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, max_g, 1));
 //   printf("tpb: %i \n", tpb);
-  initDArray<<<BLOCKS(dim, tpb), tpb>>>(vec_g, dim, 0.);
-  initDArray<<<BLOCKS(dim, tpb), tpb>>>(mu_g, dim, 0.);
-  initDArray<<<BLOCKS(dim, tpb), tpb>>>(max_g, dim, 0.);
+  initDArray(vec_g, dim, tpb, 0.);
+  initDArray(mu_g, dim, tpb, 0.);
+  initDArray(max_g, dim, tpb, 0.);
 //   initDArray<<<BLOCKS(dim, tpb), tpb>>>(min_g, dim, INFINITY);
 
 //   printf("uploaded stuff \n");
@@ -170,7 +170,7 @@ int estimateSigma(stegoContext *steg) {
     posInSigma = j*fs->gpu_matrix_width;
     blockwidth = min(fs->gpu_matrix_width, dim-posInSigma);
 //     CUBLAS_CALL( cublasSetMatrix(dim, blockwidth, sizeof(double), gauss->sigma+posInSigma*dim, dim, sigma_g, dim)); // add on cpu??
-    initDArray<<<BLOCKS(dim*blockwidth,tpb),tpb>>>(sigma_g, dim*blockwidth, 0.);
+    initDArray(sigma_g, dim*blockwidth, tpb, 0.);
     printf("about to calc sigma, blockwidth=%i, dim=%i, pos=%i mw=%i\n", blockwidth, dim, posInSigma, fs->gpu_matrix_width);
     for (i = 0; i < fs->M; i++) { // fs->M
       read = readCounts(steg, steg->features, current_feature);
@@ -313,7 +313,7 @@ void qrHouseholder(stegoContext *steg) {
   CUDA_CALL( cudaMalloc(&diag_g, dim*sizeof(double)));
 //   CUDA_CALL( cudaMalloc(&currentq_g, dim*sizeof(double)));
   
-  initDArray<<<BLOCKS(dim,tpb),tpb>>>(diag_g, dim, 0.);
+  initDArray(diag_g, dim, tpb, 0.);
   
   printf("qr: first for loop \n");
   for (i = 0; i < (dim+fs->gpu_matrix_width-1)/fs->gpu_matrix_width; i++) {
@@ -350,7 +350,7 @@ void qrHouseholder(stegoContext *steg) {
 	CUBLAS_CALL( cublasDscal(*handle, current_dim, &result, currentq_g, 1));
         applyQs(klc, currentq_g, currentq_g+dim, 1, blockwidth-j-1, current_dim);
       } else {
-	initDArray<<<1,1>>>(diag_g+posInSigma+j, 1, 0.);
+	initDArray(diag_g+posInSigma+j, 1, tpb, 0.);
       }
       //// DEBUG
 //       applyQs(klc, currentq_g, vectorBlock+dim-current_dim, 1, blockwidth, current_dim);

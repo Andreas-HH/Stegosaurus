@@ -21,16 +21,16 @@
     case CUBLAS_STATUS_SUCCESS:           \
       break;                              \
     case CUBLAS_STATUS_NOT_INITIALIZED:   \
-      printf("not init \n");              \
+      printf("cublas: not init \n");              \
       break;                              \
     case CUBLAS_STATUS_INVALID_VALUE:     \
-      printf("invalid value \n");         \
+      printf("cublas: invalid value \n");         \
       break;                              \
     case CUBLAS_STATUS_MAPPING_ERROR:     \
-      printf("Mapping error \n");         \
+      printf("cublas: Mapping error \n");         \
       break;                              \
     default:                              \
-      printf("Something else \n");        \
+      printf("cublas: Something else \n");        \
       break;                              \
   }
   
@@ -134,6 +134,7 @@ typedef struct mmdContext {
   double *clean_vectors_right_g;
   double *stego_vectors_down_g;
   double *stego_vectors_right_g;
+  // probably one of them is enough
   double *results_c_vs_c_g;
   double *results_c_vs_s_g;
   double *results_s_vs_s_g;
@@ -211,6 +212,7 @@ public:
   featureSet* getCleanSet(); // there must be some class-frontend eventually to allow DB!!!
   
   int getDimension();
+  int getSigmaDim();
   double* getMaxVector();                    // Vector of maximum elements
   double* getMuVector();                     // can be a particular feature vector or mu
   double* getQPHist();
@@ -243,18 +245,19 @@ int newFeatureFile(featureSet *set, const char *path);
 void stegoRewind(featureSet *set);
 void pathConcat(const char* a, const char* b, char *result);
 
-__global__ void initDArray(double *m, int dim, double val);
+__global__ void initDArrayKernel(double *m, int dim, double val);
 __global__ void compareMax(int dim, double *current_max, double *new_features);
 __global__ void compareMin(int dim, double *current_min, double *new_features);
 __global__ void rescaleVec(int dim, double *vec_g, double *min_g, double *max_g);
 
-__global__ void calcGamma(int dim, int bw_x, int bw_y, double* down_g, double* right_g, double* results);
+__global__ void gammaKernel(int dim, int offset, int bw_x, int bw_y, double* down_g, double* right_g, double* results);
 __global__ void calcMMD(int dim, int bw_x, int bw_y, double minus_gamma, double* down_g, double* right_g, double* results, bool add);
 
 __global__ void subtract(int dim, double *vec, double *mu);
 __global__ void constructQ(double *q, double *diag, double norm, int count);
 
 extern "C" { 
+  void initDArray(double* m, int dim, int tpb, double val);
   stegoContext* init_stego();
   gpuContext* init_gpu();
   void close_stego(stegoContext *steg);
@@ -272,6 +275,7 @@ extern "C" {
   void initMMD(stegoContext* steg, mmdContext& mc);
   void closeMMD(mmdContext& mc);
   void estimateGamma(stegoContext* steg, mmdContext& mc);
+  void launchGammaKernel(mmdContext& mc, int dim, int bw_x, int bw_y, double* down_g, double* right_g, double* results_g);
   void estimateMMD(stegoContext* steg, mmdContext& mc);
   double applyKernel(stegoContext* steg, double gamma, int dim, double* v1_g, double* v2_g, double* temp_g);
   
