@@ -34,8 +34,9 @@ __global__ void rescaleVec(int dim, double *vec_g, double *min_g, double *max_g)
   }
 }
 
-void initDArray(double* m, int dim, int tpb, double val) {
+inline void initDArray(double* m, int dim, int tpb, double val) {
   initDArrayKernel<<<BLOCKS(dim,tpb),tpb>>>(m, dim, val);
+  cudaThreadSynchronize();
 }
 
 void printPointerInfo(void *ptr) {

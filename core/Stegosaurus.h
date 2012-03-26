@@ -250,8 +250,8 @@ __global__ void compareMax(int dim, double *current_max, double *new_features);
 __global__ void compareMin(int dim, double *current_min, double *new_features);
 __global__ void rescaleVec(int dim, double *vec_g, double *min_g, double *max_g);
 
-__global__ void gammaKernel(int dim, int offset, int steps, int bw_x, int bw_y, double* down_g, double* right_g, double* results);
-__global__ void calcMMD(int dim, int bw_x, int bw_y, double minus_gamma, double* down_g, double* right_g, double* results, bool add);
+__global__ void gammaKernel(int dim, int cache, int offset, int steps, int bw_x, int bw_y, double* down_g, double* right_g, double* results);
+__global__ void mmdKernel(double minus_gamma, double *cvc_g, double *cvs_g, double *svs_g);
 
 __global__ void subtract(int dim, double *vec, double *mu);
 __global__ void constructQ(double *q, double *diag, double norm, int count);
