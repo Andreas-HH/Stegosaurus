@@ -1,14 +1,22 @@
 #include "Stegosaurus.h"
 
 
-__global__ void gammaKernel(int dim, int offset, int bw_x, int bw_y, double *down_g, double *right_g, double *results) {
+__global__ void gammaKernel(int dim, int offset, int steps, int bw_x, int bw_y, double *down_g, double *right_g, double *results) {
+  int i;
   int idx_x = threadIdx.x + blockIdx.x*blockDim.x;
   int idx_y = threadIdx.y + blockIdx.y*blockDim.y;
+  int dx = idx_x*dim + offset;
+  int dy = idx_y*dim + offset;
   double temp;
+  double current_sum = 0.;
   
-  if (idx_x < bw_x && idx_y < bw_y) { 
-    temp = down_g[idx_y*dim + offset] - right_g[idx_x*dim + offset];
-    results[idx_y + bw_y*idx_x] += temp * temp;//current_sums[idx_s];
+  if (idx_x < bw_x && idx_y < bw_y) {
+    for (i = 0; i < steps; i++) {
+      temp = down_g[dy + i] - right_g[dx + i];
+      current_sum += temp * temp;
+    }
+//     results[idx_y + bw_y*idx_x] += temp * temp;//current_sums[idx_s];
+    results[idx_y + bw_y*idx_x] += current_sum;
   }
 }
 
@@ -89,12 +97,15 @@ void closeMMD(mmdContext& mc) {
 
 void launchGammaKernel(mmdContext& mc, int dim, int bw_x, int bw_y, double* down_g, double* right_g, double* results_g) {
   int i;
+  int step_size = 128;
   dim3 grid, block;
   
   grid = dim3(BLOCKS(bw_x, mc.kernel_blockwidth), BLOCKS(bw_y, mc.kernel_blockwidth));    
   block = dim3(mc.kernel_blockwidth, mc.kernel_blockwidth);
-  for (i = 0; i < dim; i++) {
-    gammaKernel<<<grid,block>>>(dim, i, bw_x, bw_y, mc.clean_vectors_down_g, mc.clean_vectors_right_g, mc.results_c_vs_c_g);
+  for (i = 0; i < dim; i += step_size) {
+//     if (i % 100 == 0) printf("i = %i / %i \n", i, dim);
+    gammaKernel<<<grid,block>>>(dim, i, min(step_size, dim - i), bw_x, bw_y, mc.clean_vectors_down_g, mc.clean_vectors_right_g, mc.results_c_vs_c_g);
+    cudaThreadSynchronize();
   }
 }
 
@@ -106,6 +117,7 @@ void estimateGamma(stegoContext *steg, mmdContext& mc) {
   int M = mc.n;
   int dim = cleanSet->dim;
   priority_queue< double > q;
+  time_t start;
   
   for (pos_x = 0l; pos_x < (long) M; pos_x += mc.cache) {
     bw_x = min(mc.cache, M-(int)pos_x);
@@ -119,9 +131,11 @@ void estimateGamma(stegoContext *steg, mmdContext& mc) {
       for (i = 0; i < bw_y; i++) {
         readVectorL2(steg, mc.clean, mc.clean_vectors_down_g + i*dim);
       }
-      printf("launching kernel with parameters (%i, %i), (%i, %i), bw_x = %i, bw_y = %i \n", BLOCKS(bw_x, mc.kernel_blockwidth), BLOCKS(bw_y, mc.kernel_blockwidth), mc.kernel_blockwidth, mc.kernel_blockwidth, bw_x, bw_y);
+      printf("launching kernel with parameters (%i, %i), (%i, %i), bw_x = %i, bw_y = %i", BLOCKS(bw_x, mc.kernel_blockwidth), BLOCKS(bw_y, mc.kernel_blockwidth), mc.kernel_blockwidth, mc.kernel_blockwidth, bw_x, bw_y);
       initDArray(mc.results_c_vs_c_g, SQUARE(mc.cache), tpb, 0.);
+      start = time(NULL);
       launchGammaKernel(mc, dim, bw_x, bw_y, mc.clean_vectors_down_g, mc.clean_vectors_right_g, mc.results_c_vs_c_g);
+      printf(" ... took %is \n", time(NULL)-start);
       CUBLAS_CALL( cublasGetVector(SQUARE(mc.cache), sizeof(double), mc.results_c_vs_c_g, 1, mc.results, 1));
       for (i = 0; i < bw_x; i++) {
 	for (j = 0; j < bw_y; j++) {
