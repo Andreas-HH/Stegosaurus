@@ -24,7 +24,7 @@ int StegoTableModel::columnCount(const QModelIndex& parent) const{
 
 QVariant StegoTableModel::data(const QModelIndex& index, int role) const {
 //   printf("called data \n");
-  if (!index.isValid()) return QVariant();
+  if (!index.isValid() || dim == -1) return QVariant();
   
   if (role == Qt::TextAlignmentRole) {
     return int(Qt::AlignRight | Qt::AlignVCenter);

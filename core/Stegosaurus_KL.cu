@@ -82,11 +82,12 @@ int estimateMu(stegoContext *steg) {
   initDArray(vec_g, dim, tpb, 0.);
   initDArray(mu_g, dim, tpb, 0.);
   initDArray(max_g, dim, tpb, 0.);
+  stegoRewind(fs);
 //   initDArray<<<BLOCKS(dim, tpb), tpb>>>(min_g, dim, INFINITY);
 
 //   printf("uploaded stuff \n");
-  for (i = 0; i < fs->M; i++) {
-     read = readVectorRescaled(steg, steg->features, vec_g);
+  for (i = 0; i < fs->M; i++) { // 
+     read = readVectorNormalized(steg, steg->features, vec_g);
      if (read != dim) printf("read something wrong: %i \n", read);
 //      else printf("Read something right! \n");
 //      CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
@@ -112,7 +113,7 @@ int estimateMu(stegoContext *steg) {
   printf("sum over mu: ");
   for (i = 0; i < dim; i++) {
     checksum += fs->gauss->mu[i];
-    if (fs->gauss->mu[i] > 1.) printf(">1! ");
+//     if (fs->gauss->mu[i] > 1.) printf(">1! ");
 //     printf("%g, ", fs->min_vec[10*dim/QP_RANGE + i]);
   }
   printf("%g \n", checksum);
@@ -166,31 +167,31 @@ int estimateSigma(stegoContext *steg) {
 //     gauss->sigma[i] = 0;
 //   }
   
-  for (j = 0; j < (dim+fs->gpu_matrix_width-1)/fs->gpu_matrix_width; j++) { // (dim+fs->gpu_matrix_width-1)/fs->gpu_matrix_width
-    posInSigma = j*fs->gpu_matrix_width;
-    blockwidth = min(fs->gpu_matrix_width, dim-posInSigma);
-//     CUBLAS_CALL( cublasSetMatrix(dim, blockwidth, sizeof(double), gauss->sigma+posInSigma*dim, dim, sigma_g, dim)); // add on cpu??
-    initDArray(sigma_g, dim*blockwidth, tpb, 0.);
-    printf("about to calc sigma, blockwidth=%i, dim=%i, pos=%i mw=%i\n", blockwidth, dim, posInSigma, fs->gpu_matrix_width);
-    for (i = 0; i < fs->M; i++) { // fs->M
-      read = readCounts(steg, steg->features, current_feature);
-      if (read != dim) printf("read something wrong: %i \n", read);
-      CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
-      subtract<<<BLOCKS(dim,tpb),tpb>>>(dim, vec_g, mu_g);
-      
-//       cublasSetMatrix(dim, blockwidth, sizeof(double), gauss->sigma+j*fs->gpu_matrix_width*dim, dim, sigma_g, dim); // add on cpu??
-      
-//       CUBLAS_CALL( cublasDdot(*handle, dim, vec_g, 1, ones_g, 1, &checksum));
-//       printf("vec checksum: %f, %i, %i \n", checksum, BLOCKS(dim,tpb), tpb);
-//       CUBLAS_CALL( cublasDdot(*handle, dim*blockwidth, sigma_g, 1, ones_g, 1, &checksum));
-//       printf("sigma checksum: %f \n", checksum);
-      CUBLAS_CALL( cublasDger(*handle, dim, blockwidth, &(fs->divM), vec_g, 1, vec_g+j*fs->gpu_matrix_width, 1, sigma_g, dim)); // fs->divM
-      if (i%1000 == 0) printf("%i \n", i);
-//       cublasGetMatrix(dim, blockwidth, sizeof(double), sigma_g, dim, gauss->sigma+j*fs->gpu_matrix_width*dim, dim); // only do this with multiple blocks
-    }
-    stegoRewind(fs);
-    CUBLAS_CALL( cublasGetMatrix(dim, blockwidth, sizeof(double), sigma_g, dim, gauss->sigma+posInSigma*dim, dim)); // only do this with multiple blocks
-  }
+//   for (j = 0; j < (dim+fs->gpu_matrix_width-1)/fs->gpu_matrix_width; j++) { // (dim+fs->gpu_matrix_width-1)/fs->gpu_matrix_width
+//     posInSigma = j*fs->gpu_matrix_width;
+//     blockwidth = min(fs->gpu_matrix_width, dim-posInSigma);
+// //     CUBLAS_CALL( cublasSetMatrix(dim, blockwidth, sizeof(double), gauss->sigma+posInSigma*dim, dim, sigma_g, dim)); // add on cpu??
+//     initDArray(sigma_g, dim*blockwidth, tpb, 0.);
+//     printf("about to calc sigma, blockwidth=%i, dim=%i, pos=%i mw=%i\n", blockwidth, dim, posInSigma, fs->gpu_matrix_width);
+//     for (i = 0; i < fs->M; i++) { // fs->M
+//       read = readCounts(steg, steg->features, current_feature);
+//       if (read != dim) printf("read something wrong: %i \n", read);
+//       CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
+//       subtract<<<BLOCKS(dim,tpb),tpb>>>(dim, vec_g, mu_g);
+//       
+// //       cublasSetMatrix(dim, blockwidth, sizeof(double), gauss->sigma+j*fs->gpu_matrix_width*dim, dim, sigma_g, dim); // add on cpu??
+//       
+// //       CUBLAS_CALL( cublasDdot(*handle, dim, vec_g, 1, ones_g, 1, &checksum));
+// //       printf("vec checksum: %f, %i, %i \n", checksum, BLOCKS(dim,tpb), tpb);
+// //       CUBLAS_CALL( cublasDdot(*handle, dim*blockwidth, sigma_g, 1, ones_g, 1, &checksum));
+// //       printf("sigma checksum: %f \n", checksum);
+//       CUBLAS_CALL( cublasDger(*handle, dim, blockwidth, &(fs->divM), vec_g, 1, vec_g+j*fs->gpu_matrix_width, 1, sigma_g, dim)); // fs->divM
+//       if (i%1000 == 0) printf("%i \n", i);
+// //       cublasGetMatrix(dim, blockwidth, sizeof(double), sigma_g, dim, gauss->sigma+j*fs->gpu_matrix_width*dim, dim); // only do this with multiple blocks
+//     }
+//     stegoRewind(fs);
+//     CUBLAS_CALL( cublasGetMatrix(dim, blockwidth, sizeof(double), sigma_g, dim, gauss->sigma+posInSigma*dim, dim)); // only do this with multiple blocks
+//   }
   
 //   CUDA_CALL( cudaFree(ones2_g));
 //   CUDA_CALL( cudaFree(ones_g));

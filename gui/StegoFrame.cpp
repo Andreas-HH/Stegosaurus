@@ -1,5 +1,14 @@
 #include "StegoFrame.h"
 
+// extern int openD(StegoModel *model, int num, char **fnames) {
+//   for (int i = 0; i < num; i++) {
+//     printf("fnames[%i] = %s \n", i, fnames[i]);
+//     model->openDirectory(fnames[i]);
+//     free(fnames[i]);
+//   }
+//   free(fnames);
+//   model->estimateMus();
+// }
 
 StegoFrame::StegoFrame(QWidget* parent) : QMainWindow(parent) {
   QSplitter *central = new QSplitter(Qt::Vertical);
@@ -62,23 +71,24 @@ StegoFrame::StegoFrame(QWidget* parent) : QMainWindow(parent) {
 void StegoFrame::openCollection() {
   int i;
   QStringList fileNames;
-//   QString fileName = QFileDialog::getOpenFileName(this, tr("Open Features"), ".", tr("Features (*.fv)"));
-//   printf("Opening features %s \n", fileName.toStdString().c_str());
-//   model->openCollection(fileName.toStdString().c_str());
+
   if (fdial->exec()) {
     fileNames = fdial->selectedFiles();
     for (i = 0; i < fileNames.size(); i++) {
-//       printf("Opening features %s \n", fileNames.at(i).toStdString().c_str());
       model->openDirectory(fileNames.at(i).toStdString().c_str());
     }
+    statusLabel->setText(QString("Calculating Mus..."));
+    model->estimateMus();
+    statusLabel->setText(QString("Done."));
   }
-  model->estimateMus();
 }
 
 void StegoFrame::updateProgress(double p) {
 //   printf("updating progress %f \n", p);
-  progress->setValue((int) (p * 100.));
+  progress->setValue((int) (p * 100. + 0.5));
   update();
+  hw->update();
+  pw->update();
 }
 
 int main(int argc, char *argv[]) {

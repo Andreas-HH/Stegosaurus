@@ -106,8 +106,8 @@ void HistogramWidget::paintHistogram(int x, int y, double* values, int dim, QPai
   painter->drawLine(x, y+2, x+dim, y+2);
 //   painter->drawLine(x+174,y+3,x+174,y+4);
 //   painter->drawLine(x+222,y+3,x+222,y+4);
-  painter->drawLine(x+hist_blocktype_ranges[0],y+3,x+hist_blocktype_ranges[0],y+4);
-  painter->drawLine(x+hist_blocktype_ranges[0]+hist_blocktype_ranges[1],y+3,x+hist_blocktype_ranges[0]+hist_blocktype_ranges[1],y+4);
+//   painter->drawLine(x+hist_blocktype_ranges[0],y+3,x+hist_blocktype_ranges[0],y+4);
+//   painter->drawLine(x+hist_blocktype_ranges[0]+hist_blocktype_ranges[1],y+3,x+hist_blocktype_ranges[0]+hist_blocktype_ranges[1],y+4);
   painter->setPen(pen);
   for (i = 0; i < dim; i++) {
     if (values[i] > 0) {   // make zeros easily spottable

@@ -17,7 +17,6 @@ void pathConcat(const char* a, const char* b, char* result) {
 
 FeatureCollection::FeatureCollection(featureHeader *h) {
   memcpy(&header, h, sizeof(featureHeader));
-//   cleanSet = 0;
 }
 
 FeatureCollection::~FeatureCollection() {
@@ -29,9 +28,8 @@ FeatureCollection::~FeatureCollection() {
   }
 }
 
-int FeatureCollection::addFeatureFile(const char* path, featureHeader* header, stegoContext* steg) {
-  int bin;// = (int) (header->rate/BIN_WIDTH + 0.5);
-//   printf("rate = %g, bin = %i \n", header->rate, bin);
+int FeatureCollection::addFeatureFile(const char* path, featureHeader* header, stegoContext* steg, featureSet* cleanSet) {
+  int bin;
   featureSet *set;
 
   // there should be some health-checking here!
@@ -48,13 +46,21 @@ int FeatureCollection::addFeatureFile(const char* path, featureHeader* header, s
     if (collection[bin] == 0) {
 //       printf("no collection for this yet! \n");
       set = openFeatureSet(path, steg);
+      set->mask_vec = cleanSet->mask_vec;
+      set->max_g    = cleanSet->max_g;
+      set->min_g    = cleanSet->min_g;
+//       set->max_vec = cleanSet->max_vec;
+      set->mu_g     = cleanSet->mu_g;
+      set->mu_vec   = cleanSet->mu_vec;
+      set->var_g    = cleanSet->var_g;
+      
       set->rate = header->rate;
       set->id = bin;
       collection[bin] = set;
 //       printf("just defined collection[%i] \n", bin);
     } else {
-//       printf("There already is something \n");
-  //     newFeatureFile(collection[bin], path);
+      printf("There already is something \n");
+      newFeatureFile(steg, collection[bin], path);
     }
 //   }
 //   printf("added new feature file \n");
@@ -64,9 +70,9 @@ int FeatureCollection::getNumSets() {
    return collection.size();
 }
 
-int FeatureCollection::getCurrentSet() {
-  return current_set;
-}
+// int FeatureCollection::getCurrentSet() {
+//   return current_set;
+// }
 
 featureSet* FeatureCollection::getFeatureSet(int index) {
 //   return collection[index];
@@ -135,12 +141,14 @@ void StegoModel::estimateMus() {
   
   for (i = 0; i < 10; i++) {
     for (j = 0; j < 8; j++) {
-      if (collections[i][j] != 0) {
-	iter = collections[i][j]->iterator();
-	while (iter->hasNext()) {
+      if (collections[pair< int, int >(i, j)] != 0) {
+	iter = collections[pair< int, int >(i, j)]->iterator();
+	j = collections[pair< int, int >(i, j)]->getNumSets();
+	for (i = 0; iter->hasNext(); i++) {
 	  steg->features = iter->next();
 	  printf("About to estimate mu with dim=%i, M=%i \n", steg->features->dim, steg->features->M);
 	  estimateMu(steg);
+	  progressChanged((double) i / (double) j);
 	}
       }
     }
@@ -156,7 +164,7 @@ double StegoModel::doMMD(featureSet *clean, featureSet *stego) {
     mc->clean = clean;
     mc->stego = stego;
     initMMD(steg, *mc);
-    estimateGamma(steg, *mc);
+//     estimateGamma(steg, *mc);
   }
   mc->stego = stego;
 //   mc->stego = mc->clean;
@@ -217,10 +225,10 @@ void StegoModel::openDirectory(const char* path) {
   struct dirent *entry;
   
   if (root == NULL) {
-//     printf("root is NULL \n");
+    printf("root is NULL \n");
     return;
   }
-//   printf("Root not NULL. \n");
+  printf("Root not NULL. \n");
   while ((entry = readdir(root)) != NULL) {
     if (strstr(entry->d_name, ".fv") != NULL) {
       num_sets++;
@@ -232,85 +240,53 @@ void StegoModel::openDirectory(const char* path) {
     entry = readdir(root);
     if (strstr(entry->d_name, ".fv") != NULL) {
       pathConcat(path, entry->d_name, str);
-//       printf("about to open str (=%s) \n", str);
       file = fopen(str, "r");
-//       printf("about to read header \n");
       readHeader(file, &header);
       if (ranges == 0) {
 	printf("first file is being added! \n");
 	ranges = (int**) malloc(3*sizeof(int*));
-	if (header.pair) {
-	  for (k = 0; k < 3; k++) {
-	    ranges[k] = (int*) malloc((2*header.ranges[k][0]+1)*sizeof(int));
-	    for (j = 0; j < 2*header.ranges[k][0]+1; j++)
-	      ranges[k][j] = header.ranges[k][1];
-	  }
-	} else {
-	  for (k = 0; k < 3; k++) {
-	    ranges[k] = (int*) malloc(num_coefs[k]*sizeof(int));
-	    for (j = 0; j < num_coefs[k]; j++)
-	      ranges[k][j] = header.ranges[k][j];
-	  }
+	for (k = 0; k < 3; k++) {
+	  ranges[k] = (int*) malloc(num_coefs[k]*sizeof(int));
+	  for (j = 0; j < num_coefs[k]; j++)
+	    ranges[k][j] = header.ranges[k][j];
 	}
       }
-//       printf("successfully read header \n");
-      fclose(file);
-//       set->name = (char*) malloc(strlen(entry->d_name)*sizeof(char));
-//       strcpy(set->name, entry->d_name);
-      printf("method: %i \n", header.method);
+     fclose(file);
+
+     printf("method: %i \n", header.method);
       printf("qp range: %i \n", header.qp_range);
       if (header.method == 0) {
 	if (cleanSet == 0) {
-	  printf("cleanSet shouldn't be null from now on! %s ", str);
 	  cleanSet = openFeatureSet(str, steg);
-	  if (cleanSet != 0)
-	    printf("indeed! \n");
 	} else {
-	  newFeatureFile(cleanSet, str);
+	  printf("adding new feature file to clean set \n");
+	  newFeatureFile(steg, cleanSet, str);
 	}
       } else {
-	if (collections[header.method][header.accept] == 0) {
-	  collections[header.method][header.accept] = new FeatureCollection(&header);
+	if (collections[pair<int, int>(header.method,header.accept)] == 0) {
+	  collections[pair<int, int>(header.method,header.accept)] = new FeatureCollection(&header);
 	  printf("Created new collection for method %i and accept %i \n", header.method, header.accept);
 	}
-        collections[header.method][header.accept]->addFeatureFile(str, &header, steg);
+        collections[pair<int, int>(header.method, header.accept)]->addFeatureFile(str, &header, steg, cleanSet);
       }
-/*      printf("[%i][%i][%i][%i] = %i \n", header.video_bitrate, header.pair, header.method, header.accept, collections[header.video_bitrate][header.pair][header.method][header.accept]);
-      if ((((collections[header.video_bitrate])[header.pair])[header.method])[header.accept] == 0) {
-	collections[header.video_bitrate][header.pair][header.method][header.accept] = new FeatureCollection(&header);
-	printf("Created new collection for method %i and accept %i \n", header.method, header.accept);
-      }
-      collections[header.video_bitrate][header.pair][header.method][header.accept]->addFeatureFile(str, &header);*/
       i++;
+      progressChanged((double) i / (double) num_sets);
     }
   }
   collectionChanged();
-  
-//   // print results
-//   FeatureCollection::Iterator* iter;
-//   printf("printing collections: \n");
-//   for (i = 0; i < 10; i++) {
-//     for (j = 0; j < 8; j++) {
-//       if (collections[i][j] != 0) {
-// 	printf("Trying to set up an iterator (%i, %i) \n", i, j);
-// 	iter = collections[i][j]->iterator();
-// 	if (iter->hasNext()) printf("There is something inside! \n");
-// 	while(iter->hasNext()) {
-// 	  printf("%i \n", iter->next()->M);
-// 	}
-//       }
-//     }
-//   }
-//   printf("%i sets, collection[0]->M = %i \n", num_sets, collection[0]->M);
+
   closedir(root);
   free(str);
 }
 
-FeatureCollection::Iterator* StegoModel::getFeatureIterator(int video_birate, int pair, int method, int accept) {
+FeatureCollection::Iterator* StegoModel::getFeatureIterator(int video_birate, int ppair, int method, int accept) {
 //   if (method < 0 || method >= 10) return 0;
 //   if (accept < 0 || accept >= 8)  return 0;
-  if (collections[method][accept] != 0) {
-    return collections[method][accept]->iterator();
+//   if (collections[method][accept] != 0) {
+//     return collections[method][accept]->iterator();
+//   }
+  if (collections[pair<int, int>(method, accept)] != 0) {
+    return collections[pair<int, int>(method, accept)]->iterator();
   }
   return 0;
 }

@@ -38,7 +38,7 @@ void FeatureWidget::updateCollection() {
     set1 = set;
     items.append(new QStandardItem(tr("%1").arg(set->rate)));
     items.append(new QStandardItem(tr("%1").arg(set->M)));
-    items.append(new QStandardItem(tr("%1").arg(set->id)));
+    items.append(new QStandardItem(tr("%1").arg(set->num_files)));
     items.append(new QStandardItem(tr("%1").arg(set->dim)));
     treeModel->appendRow(items);
     items.clear();
@@ -56,7 +56,7 @@ void FeatureWidget::updateCollection() {
 // 	    set1 = set;
 	  items.append(new QStandardItem(tr("%1").arg(set->rate)));
 	  items.append(new QStandardItem(tr("%1").arg(set->M)));
-	  items.append(new QStandardItem(tr("%1").arg(set->id)));
+	  items.append(new QStandardItem(tr("%1").arg(set->num_files)));
 	  items.append(new QStandardItem(tr("%1").arg(set->dim)));
 	  parent->appendRow(items);
 	  items.clear();

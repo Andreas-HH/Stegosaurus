@@ -43,48 +43,6 @@ int readHeader(FILE *file, featureHeader *header) {
   return 0;
 }
 
-int newFeatureFile(featureSet* set, const char* path) {
-  int i;
-  int dim = 0;
-  int read;
-  int vec[set->dim];
-  long localM = 0l;
-  FILE *file;// = fopen(path, "r");
-  featureHeader header;
-    
-  if (set->num_files == MAX_FILES) return -1;
-  file = fopen(path,"r");
-  readHeader(file, &header);
-//   // double-check dimension
-//   if (header.pair) {
-//     dim = (2*header.ranges[0][0]+1)*(2*header.ranges[0][1]+1) + 
-//           (2*header.ranges[1][0]+1)*(2*header.ranges[1][1]+1) + 
-// 	  (2*header.ranges[2][0]+1)*(2*header.ranges[2][1]+1);
-//   } else {
-//     for (i = 0; i < 16; i++) dim += 2*header.ranges[0][i]+1;
-//     for (i = 0; i < 4; i++)  dim += 2*header.ranges[0][i]+1;
-//     for (i = 0; i < 15; i++) dim += 2*header.ranges[0][i]+1;
-//   }
-//   dim *= header.qp_range;
-//   if (dim != set->dim) {
-//     printf("Dimension mismatch! \n");
-//     fclose(file);
-//     return -2;
-//   }
-  
-  while ((read = fread(vec, sizeof(int), dim, file))>0) // && M<10000
-    localM++;
-  set->M += (int) localM;
-  set->vsPerFile[set->num_files] = localM;
-  set->divM = 1./set->M;
-  rewind(file);
-  readHeader(file, &header);
-  
-  set->files[set->num_files] = file;
-  set->num_files++;
-  return 0;
-}
-
 int jumpToVector(featureSet *set, long vecnum) {
   int i;
   long seenvs = 0l;
@@ -108,15 +66,11 @@ int jumpToVector(featureSet *set, long vecnum) {
 
 void stegoRewind(featureSet *set) {
   int i;
-//   featureHeader header;
-//   
+
   for (i = 0; i < set->num_files; i++) {
-//     fsetpos(set->files[i], &set->dataOffset);
     fseek(set->files[i], set->dataOffset, SEEK_SET);
-//     rewind(set->files[i]);
-//     readHeader(set->files[i], &header);
   }
-//   set->current_file = 0;
+  set->current_file = 0;
 }
 
 // void storeGaussian(char* path, myGaussian* gauss) {

@@ -13,6 +13,9 @@
 #include <list>
 #include <map>
 #include <queue>
+#include <utility>
+#include <string>
+#include <stdint.h>
 // #include <unordered_map>
 
 #define SQUARE(x) (x)*(x)
@@ -85,13 +88,13 @@ typedef struct featureHeader {
 
 typedef struct featureSet {
   featureHeader *header;
-  int dim;
-  int M;
+  uint64_t dim;
+  uint64_t M;
   int id;                                    // helps to find a set
   int gpu_matrix_width;                      // max number of matrix column in gpu memory
   int num_files;
   int current_file;
-  long *vsPerFile;
+  uint64_t *vsPerFile;
   FILE **files;
   char *name;
   long dataOffset;
@@ -102,6 +105,10 @@ typedef struct featureSet {
   double *ones_g;
   double *max_g;
   double *min_g;                             // usually is identically zero, but better be sure
+  double *mu_g;
+  double *mu_vec;
+  double *var_g;
+  int *mask_vec;
   double *max_vec;                           // vector of maximum entries
   double *min_vec;
   double *qp_vec;
@@ -185,8 +192,8 @@ public:
   };
   
   int getNumSets();
-  int getCurrentSet();
-  int addFeatureFile(const char *path, featureHeader *header, stegoContext *steg);
+//   int getCurrentSet();
+  int addFeatureFile(const char *path, featureHeader *header, stegoContext *steg, featureSet *cleanSet);
   featureSet* getFeatureSet(int index);
   featureSet* nextFeatureSet();
   FeatureCollection::Iterator* iterator();
@@ -226,7 +233,8 @@ protected:
 //   int current_view;
   int **ranges;                              //  [block][row], row depends on if we have pair or hist features,, the first added feature file will determine this!
   list< StegoView* > views;
-  FeatureCollection *collections[10][8];           // [method][accept] ... [0] = clean, [1] = plusminus1, ... 
+  map< pair< int, int >, FeatureCollection* > collections;
+//   FeatureCollection *collections[10][8];           // [method][accept] ... [0] = clean, [1] = plusminus1, ... 
 //   map< int, vector< map< int, vector< FeatureCollection* > > > > collections; // video_bitrate -> hist/pair -> method -> accept
   stegoContext *steg;
   featureSet *cleanSet;
@@ -241,14 +249,15 @@ protected:
 int readHeader(FILE *file, featureHeader *header);
 int closeFeatureSet(featureSet *set);
 int jumpToVector(featureSet *set, long vecnum);
-int newFeatureFile(featureSet *set, const char *path);
 void stegoRewind(featureSet *set);
 void pathConcat(const char* a, const char* b, char *result);
 
 __global__ void initDArrayKernel(double *m, int dim, double val);
 __global__ void compareMax(int dim, double *current_max, double *new_features);
 __global__ void compareMin(int dim, double *current_min, double *new_features);
-__global__ void rescaleVec(int dim, double *vec_g, double *min_g, double *max_g);
+__global__ void rescaleKernel(int dim, double *vec_g, double *min_g, double *max_g);
+__global__ void varianceKernel(double divM, double *vec_g, double *mu_g, double *var_g);
+__global__ void normalizeKernel(double *vec_g, double *mu_g, double *var_g);
 
 __global__ void gammaKernel(int dim, int cache, int offset, int steps, int bw_x, int bw_y, double* down_g, double* right_g, double* results);
 __global__ void mmdKernel(double minus_gamma, double *cvc_g, double *cvs_g, double *svs_g);
@@ -265,9 +274,12 @@ extern "C" {
   int estimateMu(stegoContext *steg);
   void printPointerInfo(void *ptr);
   featureSet* openFeatureSet(const char* path, stegoContext *steg);
-  int readCountVector(double *data, int *cache, int dim, FILE *file);
-  int readCounts(stegoContext* steg, featureSet* set, double* vec);
+  int newFeatureFile(stegoContext* steg, featureSet* set, const char* path);
+  int estimateScalingParameters(stegoContext* steg, featureSet* set);
+//   int readCountVector(double *data, int *cache, int dim, FILE *file);
+  int readCounts(featureSet* set);
   int readVectorRescaled(stegoContext *steg, featureSet *set, double *vec_g);
+  int readVectorNormalized(stegoContext *steg, featureSet *set, double *vec_g);
   int readVectorL1D(stegoContext *steg, featureSet *set, double *vec_g);
   int readVectorL2(stegoContext *steg, featureSet *set, double *vec_g);
   void scaleL1D(stegoContext* steg, int dim, double* vec, double* vec_g, double* ones_g);
