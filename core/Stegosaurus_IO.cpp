@@ -13,7 +13,7 @@ int readHeader(FILE *file, featureHeader *header) {
   fread(&header->method, sizeof(char), 1, file);
 //   printf("method: %i \n", header->method);
   if (header->method != 0) {
-    fread(&header->using_rate, sizeof(char), 1, file);
+//     fread(&header->using_rate, sizeof(char), 1, file);
     fread(&header->prob, sizeof(double), 1, file);
 //     printf("rate: %f \n", header->rate);
     fread(&header->accept, sizeof(char), 1, file);
@@ -47,20 +47,13 @@ int jumpToVector(featureSet *set, uint64_t vecnum) {
   int i;
   uint64_t seenvs = 0ull;
   
-//   printf("doing some jump to vec %i... %i \n", vecnum, set->num_files);
   for (i = 0; seenvs <= vecnum && i < set->num_files; i++) {
     seenvs += set->vsPerFile[i];
   }
   seenvs -= set->vsPerFile[--i];
-//   if (i == set->num_files) {
-// //     printf("trying to jump out of range! \n");
-//     return 1;
-//   }
-//   printf("i = %i, seen %i vectors, will jump to pos %i \n", i, seenvs, vecnum-seenvs);
   set->current_file = i;
   fseek(set->files[set->current_file], set->dataOffset + (long) ((vecnum-seenvs)*set->dim), SEEK_SET);
-//   printf("Done. \n");
-//   fsetpos(set->current_file, 
+
   return 0;
 }
 

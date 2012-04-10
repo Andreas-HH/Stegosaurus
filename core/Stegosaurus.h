@@ -101,7 +101,7 @@ typedef struct featureSet {
   char *name;
   long dataOffset;
 
-  int *counts;                               // want to make this long as soon as compression works
+  uint32_t *counts;                               // want to make this long as soon as compression works
   double *vec;
   double *vec_g;
   double *ones_g;

@@ -184,21 +184,17 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
   initDArray(set->ones_g, dim, tpb, 1.);
   
   M = 0ull;
-  while ((read = fread(set->counts, sizeof(int), dim, file)) == dim) { // && M<10000
+  while ((read = fread(set->counts, sizeof(uint32_t), dim, file)) == dim) { // && M<10000
     M++;
   }
   if (read != 0) {
     printf("dim = &%i, read = %i \n", dim, read);
     printf("Wrong dimension?? \n");
   }
-//   rewind(file);                           // need a method that
-//   fseek(file, posZero, SEEK_SET);
-//   readHeader(file, &header);
-  
+
   set->vsPerFile[0] = M;
   set->M = M;
   set->divM = 1./(double) M;
-  
   stegoRewind(set);
   
 //   printf("esitmatig scaling \n");
@@ -287,7 +283,7 @@ int readCounts(featureSet *set) {
   double *vec_g;
   double sum;
   
-  read = fread(set->counts, sizeof(int), set->dim, set->files[set->current_file]);//readCountVector(vec, set->counts, set->dim, set->files[set->current_file]);
+  read = fread(set->counts, sizeof(uint32_t), set->dim, set->files[set->current_file]);//readCountVector(vec, set->counts, set->dim, set->files[set->current_file]);
   if (read == 0) {
     set->current_file++;
     if (set->current_file == set->num_files)
