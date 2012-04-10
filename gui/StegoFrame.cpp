@@ -82,14 +82,10 @@ void StegoFrame::openCollection() {
   if (fdial->exec()) {
     fileNames = fdial->selectedFiles();
     for (i = 0; i < fileNames.size(); i++) {
-      model->openDirectory(fileNames.at(i).toStdString().c_str());
+      model->openFile(fileNames.at(i).toStdString().c_str(), i, fileNames.size());
     }
-//     statusLabel->setText(QString("Calculating Mus..."));
-//     statusLabel->update();
-//     model->estimateMus();
-//     statusLabel->setText(QString("Done."));
-//     statusLabel->update();
   }
+//   model->collectionChanged();
 }
 
 void StegoFrame::calcMMDs() {

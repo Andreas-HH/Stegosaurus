@@ -12,6 +12,7 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <set>
 #include <queue>
 #include <utility>
 #include <string>
@@ -79,7 +80,7 @@ typedef struct featureHeader {
   char slice_type;
   char method;
   char using_rate;
-  double rate;
+  double prob;
   char accept;
   char qp_offset;
   char qp_range;
@@ -117,6 +118,8 @@ typedef struct featureSet {
   double prob;
   double divM;    
   myGaussian* gauss;
+  
+  set<string> *paths;
 } featureSet;
 
 typedef struct klContext {
@@ -226,7 +229,8 @@ public:
   };
  
   void addView(StegoView *view);
-  void openDirectory(const char* path);
+  void openDirectory(const char *path);
+  void openFile(const char* path, int i, int num_sets);
   void estimateMus();
   void doMMDs();
   double doMMD(featureSet* clean, featureSet* stego);
@@ -249,6 +253,7 @@ protected:
   int **ranges;                              //  [block][row], row depends on if we have pair or hist features,, the first added feature file will determine this!
   list< StegoView* > views;
   map< pair< int, int >, FeatureCollection* > collections;
+  set<string> *seenPaths;
 //   FeatureCollection *collections[10][8];           // [method][accept] ... [0] = clean, [1] = plusminus1, ... 
 //   map< int, vector< map< int, vector< FeatureCollection* > > > > collections; // video_bitrate -> hist/pair -> method -> accept
   stegoContext *steg;

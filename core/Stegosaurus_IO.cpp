@@ -14,12 +14,12 @@ int readHeader(FILE *file, featureHeader *header) {
 //   printf("method: %i \n", header->method);
   if (header->method != 0) {
     fread(&header->using_rate, sizeof(char), 1, file);
-    fread(&header->rate, sizeof(double), 1, file);
+    fread(&header->prob, sizeof(double), 1, file);
 //     printf("rate: %f \n", header->rate);
     fread(&header->accept, sizeof(char), 1, file);
 //     printf("accept: %i \n", header->accept);
   } else {
-    header->rate = -1.;
+    header->prob = -1.;
     header->accept = 0;
   }
   fread(&header->qp_offset, sizeof(char), 1, file);
