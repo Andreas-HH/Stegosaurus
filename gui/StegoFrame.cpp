@@ -46,22 +46,29 @@ StegoFrame::StegoFrame(QWidget* parent) : QMainWindow(parent) {
   addDockWidget(Qt::BottomDockWidgetArea, tdock);
   
   openAction = new QAction(tr("Open"), this);
+  mmdAction  = new QAction(tr("MMDs"), this);
+  muAction   = new QAction(tr("Mus"), this);
   
   fdial = new QFileDialog(this);
-  fdial->setFileMode(QFileDialog::Directory);
+  fdial->setFileMode(QFileDialog::ExistingFiles);
   fdial->setNameFilter(tr("Features (*.fv)"));
   fdial->setAcceptMode(QFileDialog::AcceptOpen);
   fdial->setDirectory(tr("."));
   
   fileMenu = menuBar()->addMenu(tr("Features"));
+  calcMenu = menuBar()->addMenu(tr("Calculate"));
   fileMenu->addAction(openAction);
+  calcMenu->addAction(muAction);
+  calcMenu->addAction(mmdAction);
   
   progress = new QProgressBar(statusBar());
   statusLabel = new QLabel(tr("Ready."));
   statusBar()->addPermanentWidget(statusLabel, 9);
   statusBar()->addPermanentWidget(progress, 1);
   
-  connect(openAction, SIGNAL(triggered()), this, SLOT(openCollection()));
+  connect(openAction, SIGNAL(triggered(bool)), this, SLOT(openCollection()));
+  connect(mmdAction, SIGNAL(triggered(bool)), this, SLOT(calcMMDs()));
+  connect(muAction, SIGNAL(triggered(bool)), this, SLOT(calcMus()));
 //   connect(cdock, SIGNAL(newHorizD(int)), hw, SLOT(newHorizD(int)));
   
   setMinimumSize(1600, 900);
@@ -77,11 +84,22 @@ void StegoFrame::openCollection() {
     for (i = 0; i < fileNames.size(); i++) {
       model->openDirectory(fileNames.at(i).toStdString().c_str());
     }
-    statusLabel->setText(QString("Calculating Mus..."));
-    model->estimateMus();
-    statusLabel->setText(QString("Done."));
+//     statusLabel->setText(QString("Calculating Mus..."));
+//     statusLabel->update();
+//     model->estimateMus();
+//     statusLabel->setText(QString("Done."));
+//     statusLabel->update();
   }
 }
+
+void StegoFrame::calcMMDs() {
+  model->doMMDs();
+}
+
+void StegoFrame::calcMus() {
+  model->estimateMus();
+}
+
 
 void StegoFrame::updateProgress(double p) {
 //   printf("updating progress %f \n", p);

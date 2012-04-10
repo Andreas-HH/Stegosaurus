@@ -23,6 +23,7 @@ protected:
   TableDock *tdock;
   GraphDock *gdock;
   QMenu *fileMenu;
+  QMenu *calcMenu;
   QMenu *showMenu;
   QProgressBar *progress;
   QLabel *statusLabel;
@@ -32,9 +33,13 @@ protected:
   
   QFileDialog *fdial;
   QAction *openAction;
+  QAction *mmdAction;
+  QAction *muAction;
   QAction *showTableAction;
 public slots:
   void openCollection();
+  void calcMMDs();
+  void calcMus();
 };
 
 #endif /* STEGOFRAME */

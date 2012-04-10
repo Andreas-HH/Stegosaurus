@@ -43,22 +43,22 @@ int readHeader(FILE *file, featureHeader *header) {
   return 0;
 }
 
-int jumpToVector(featureSet *set, long vecnum) {
+int jumpToVector(featureSet *set, uint64_t vecnum) {
   int i;
-  long seenvs = 0l;
+  uint64_t seenvs = 0ull;
   
 //   printf("doing some jump to vec %i... %i \n", vecnum, set->num_files);
   for (i = 0; seenvs <= vecnum && i < set->num_files; i++) {
     seenvs += set->vsPerFile[i];
   }
   seenvs -= set->vsPerFile[--i];
-  if (i == set->num_files) {
-//     printf("trying to jump out of range! \n");
-    return 1;
-  }
+//   if (i == set->num_files) {
+// //     printf("trying to jump out of range! \n");
+//     return 1;
+//   }
 //   printf("i = %i, seen %i vectors, will jump to pos %i \n", i, seenvs, vecnum-seenvs);
   set->current_file = i;
-  fseek(set->files[set->current_file], set->dataOffset + (vecnum-seenvs)*(long)set->dim, SEEK_SET);
+  fseek(set->files[set->current_file], set->dataOffset + (long) ((vecnum-seenvs)*set->dim), SEEK_SET);
 //   printf("Done. \n");
 //   fsetpos(set->current_file, 
   return 0;

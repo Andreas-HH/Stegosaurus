@@ -9,7 +9,7 @@ FeatureWidget::FeatureWidget(QWidget* parent, StegoModel* model): QWidget(parent
   fview = new QTreeView(this);
   treeModel = new QStandardItemModel();
   labels = new QStringList();
-  *labels << tr("rate [bits/block]") << tr("# vectors") << tr("# files") << tr("dim");
+  *labels << tr("probability") << tr("# vectors") << tr("# files") << tr("dimension") << tr("type");
   treeModel->setHorizontalHeaderLabels(*labels);
   fview->setModel(treeModel);
 
@@ -22,57 +22,56 @@ FeatureWidget::FeatureWidget(QWidget* parent, StegoModel* model): QWidget(parent
 
 void FeatureWidget::updateCollection() {
   int i, j, idx = 0;
-  double mmds[25]; 
+  int currentMethod = -1; // some illegal value
+//   bool appendM = false;
   FeatureCollection::Iterator *iter;
   featureSet *set;
   QList< QStandardItem* > items;
-  QStandardItem *parent;
-  printf("Dock: updating collection \n");
+  QStandardItem *parentM, *parentA;
+  StegoModel::Iterator *miter;
+  
   treeModel->clear();
   treeModel->setHorizontalHeaderLabels(*labels);
   connect(fview, SIGNAL(entered(QModelIndex)), this, SLOT(selection(QModelIndex)));
   connect(fview, SIGNAL(activated(QModelIndex)), this, SLOT(selection(QModelIndex)));
-//   printf("about to ask model for clean set \n");
+
   if ((set = model->getCleanSet()) != 0) {
-//     printf("found something \n");
     set1 = set;
-    items.append(new QStandardItem(tr("%1").arg(set->rate)));
+    items.append(new QStandardItem(tr("%1").arg(0)));
     items.append(new QStandardItem(tr("%1").arg(set->M)));
     items.append(new QStandardItem(tr("%1").arg(set->num_files)));
     items.append(new QStandardItem(tr("%1").arg(set->dim)));
+    items.append(new QStandardItem(tr("%1").arg((int)set->header->slice_type)));
     treeModel->appendRow(items);
     items.clear();
   }
-  for (i = 0; i < 10; i++) {
-    parent = new QStandardItem(tr("Features"));
-    for (j = 0; j < 8; j++) {
-      iter = model->getFeatureIterator(0, 0, i, j);
-      if (iter != 0) {
-// 	printf("Have some iterator \n");
-	while (iter->hasNext()) {
-// 	  printf("Have next! \n");
-	  set = iter->next();
-// 	  if (set1 == 0)
-// 	    set1 = set;
-	  items.append(new QStandardItem(tr("%1").arg(set->rate)));
-	  items.append(new QStandardItem(tr("%1").arg(set->M)));
-	  items.append(new QStandardItem(tr("%1").arg(set->num_files)));
-	  items.append(new QStandardItem(tr("%1").arg(set->dim)));
-	  parent->appendRow(items);
-	  items.clear();
-	  set2 = set;
-	  if (set1 != 0 && set2 != 0)
-            mmds[idx++] = model->doMMD(set1, set2);
-	}
-	treeModel->appendRow(parent);	
-      }
+  
+  miter = model->iterator();
+  while(miter->hasNext()) {
+    iter = miter->next()->iterator();
+//     printf("adding some stego set \n");
+    if (miter->getX().first != currentMethod) {
+      if (currentMethod != -1)
+	treeModel->appendRow(parentM);
+      currentMethod = miter->getX().first;
+      parentM = new QStandardItem(tr("%1").arg(miter->getX().first));
     }
+    parentA = new QStandardItem(tr("%1").arg(miter->getX().second));
+    while (iter->hasNext()) {
+      set = iter->next();
+      items.append(new QStandardItem(tr("%1").arg(set->prob)));
+      items.append(new QStandardItem(tr("%1").arg(set->M)));
+      items.append(new QStandardItem(tr("%1").arg(set->num_files)));
+      items.append(new QStandardItem(tr("%1").arg(set->dim)));
+      items.append(new QStandardItem(tr("%1").arg((int)set->header->slice_type)));
+      parentA->appendRow(items);
+      items.clear();
+    }
+      parentM->appendRow(parentA);
   }
+  if (currentMethod != -1)
+    treeModel->appendRow(parentM);
   update();
-  for (i = 0; i < 25; i++)
-    printf("mmds[%i] = %g \n", i, mmds[i]);
-//   if (set1 != 0 && set2 != 0)
-//     model->doMMD(set1, set2);
 }
 
 void FeatureWidget::selection(QModelIndex mi) {

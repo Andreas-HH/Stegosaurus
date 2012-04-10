@@ -45,7 +45,7 @@ __global__ void constructQ(double *q, double *diag, double norm, int count) {
 }*/
 
 int estimateMu(stegoContext *steg) {
-  int i;
+  uint64_t i;
   int read;
 //   double sum;
   featureSet *fs = steg->features;
@@ -58,17 +58,18 @@ int estimateMu(stegoContext *steg) {
   double checksum = 0.;
   double *mu_g, *max_g, *min_g, *vec_g;
   
-  if (fs->gauss->mu != NULL) return -1;
-  
-//   CUDA_CALL( cudaHostAlloc(&current_feature, dim*sizeof(double), cudaHostAllocDefault));
-  CUDA_CALL( cudaHostAlloc(&(fs->gauss->mu), dim*sizeof(double), cudaHostAllocDefault));
-//   CUDA_CALL( cudaHostAlloc(&(fs->max_vec), dim*sizeof(double), cudaHostAllocDefault));
-//   CUDA_CALL( cudaHostAlloc(&(fs->min_vec), dim*sizeof(double), cudaHostAllocDefault));
-//   CUDA_CALL( cudaHostAlloc(&(fs->qp_vec), QP_RANGE*sizeof(double), cudaHostAllocDefault));
-  CUDA_CALL( cudaMalloc(&mu_g, dim*sizeof(double)));
-//   CUDA_CALL( cudaMalloc(&qp_g, 20*sizeof(double)));
-  CUDA_CALL( cudaMalloc(&vec_g, dim*sizeof(double)));
-  CUDA_CALL( cudaMalloc(&max_g, dim*sizeof(double)));
+//   if (fs->gauss->mu != NULL) return -1;
+  if (fs->gauss->mu == NULL) {
+  //   CUDA_CALL( cudaHostAlloc(&current_feature, dim*sizeof(double), cudaHostAllocDefault));
+    CUDA_CALL( cudaHostAlloc(&(fs->gauss->mu), dim*sizeof(double), cudaHostAllocDefault));
+  }
+  //   CUDA_CALL( cudaHostAlloc(&(fs->max_vec), dim*sizeof(double), cudaHostAllocDefault));
+  //   CUDA_CALL( cudaHostAlloc(&(fs->min_vec), dim*sizeof(double), cudaHostAllocDefault));
+  //   CUDA_CALL( cudaHostAlloc(&(fs->qp_vec), QP_RANGE*sizeof(double), cudaHostAllocDefault));
+    CUDA_CALL( cudaMalloc(&mu_g, dim*sizeof(double)));
+  //   CUDA_CALL( cudaMalloc(&qp_g, 20*sizeof(double)));
+    CUDA_CALL( cudaMalloc(&vec_g, dim*sizeof(double)));
+    CUDA_CALL( cudaMalloc(&max_g, dim*sizeof(double)));
 //   CUDA_CALL( cudaMalloc(&min_g, dim*sizeof(double)));
   
 //   fs->gauss->mu = (double*) malloc(dim*sizeof(double));
@@ -86,18 +87,18 @@ int estimateMu(stegoContext *steg) {
 //   initDArray<<<BLOCKS(dim, tpb), tpb>>>(min_g, dim, INFINITY);
 
 //   printf("uploaded stuff \n");
-  for (i = 0; i < fs->M; i++) { // 
-     read = readVectorNormalized(steg, steg->features, vec_g);
+  for (i = 0ull; i < fs->M; i++) { // 
+     read = readVectorRescaled(steg, steg->features, vec_g);
      if (read != dim) printf("read something wrong: %i \n", read);
 //      else printf("Read something right! \n");
 //      CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
      cublasDaxpy(*handle, dim, &(fs->divM), vec_g, 1, mu_g, 1);     // put divM on gpu?
-     compareMax<<<BLOCKS(dim,tpb),tpb>>>(dim, max_g, vec_g);
+//      compareMax<<<BLOCKS(dim,tpb),tpb>>>(dim, max_g, vec_g);
   }
 //   computeQPHistogram(steg, fs->mu_g, 20, fs->qp_g);
 //   CUBLAS_CALL( cublasGetVector(20, sizeof(double), fs->qp_g, 1, fs->qp_vec, 1));
   CUBLAS_CALL( cublasGetVector(dim, sizeof(double), mu_g, 1, fs->gauss->mu, 1));
-  CUBLAS_CALL( cublasGetVector(dim, sizeof(double), max_g, 1, fs->max_vec, 1));
+//   CUBLAS_CALL( cublasGetVector(dim, sizeof(double), max_g, 1, fs->max_vec, 1));
 //   CUBLAS_CALL( cublasGetVector(dim, sizeof(double), min_g, 1, fs->min_vec, 1));
   stegoRewind(fs);
   
@@ -110,13 +111,13 @@ int estimateMu(stegoContext *steg) {
     fs->qp_vec[i] *= 100./((double) dim);
   }
   
-  printf("sum over mu: ");
-  for (i = 0; i < dim; i++) {
-    checksum += fs->gauss->mu[i];
+//   printf("sum over mu: ");
+//   for (i = 0; i < dim; i++) {
+//     checksum += fs->gauss->mu[i];
 //     if (fs->gauss->mu[i] > 1.) printf(">1! ");
 //     printf("%g, ", fs->min_vec[10*dim/QP_RANGE + i]);
-  }
-  printf("%g \n", checksum);
+//   }
+//   printf("%g \n", checksum);
 //   CUDA_CALL( cudaFreeHost(current_feature));
   CUDA_CALL( cudaFree(mu_g));
 //   CUDA_CALL( cudaFree(qp_g));

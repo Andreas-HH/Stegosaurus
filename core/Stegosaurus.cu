@@ -195,6 +195,7 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
 //   fseek(file, posZero, SEEK_SET);
 //   readHeader(file, &header);
   
+  set->vsPerFile[0] = M;
   set->M = M;
   set->divM = 1./(double) M;
   
@@ -238,7 +239,8 @@ int estimateScalingParameters(stegoContext *steg, featureSet *set) {
     CUBLAS_CALL( cublasGetVector(dim, sizeof(double), set->mu_g, 1, set->mu_vec, 1));
   CUBLAS_CALL( cublasGetVector(dim, sizeof(double), set->var_g, 1, set->vec, 1));
   for (i = 0ull; i < dim; i++) {
-    set->vec[i] = 1./sqrt(set->vec[i]);
+    if (set->vec[i] > 0.)
+      set->vec[i] = 1./sqrt(set->vec[i]);
   }
   CUBLAS_CALL( cublasSetVector(dim, sizeof(double), set->vec, 1, set->var_g, 1));
   for (i = 10000ull; i < 10100ull; i++) {
@@ -255,17 +257,17 @@ int newFeatureFile(stegoContext *steg, featureSet* set, const char* path) {
   FILE *file;// = fopen(path, "r");
   featureHeader header;
   
-  printf("a new file, yay, paht is %s \n", path);
+//   printf("a new file, yay, paht is %s \n", path);
   if (set->num_files == MAX_FILES) return -1;
   file = fopen(path,"r");
   readHeader(file, &header);
-  printf("just read header, found method = %i\n", header.method);
+//   printf("just read header, found method = %i\n", header.method);
   
   while ((read = fread(set->counts, sizeof(int), dim, file)) == dim) {// && M<10000
-    printf("1 vecotr :D, read %i elements \n", read);
+//     printf("1 vecotr :D, read %i elements \n", read);
     localM++;
   }
-  printf("it contains %ld vectors xD, read = %i \n", localM, read);
+//   printf("it contains %ld vectors xD, read = %i \n", localM, read);
   set->M += localM;
   set->vsPerFile[set->num_files] = localM;
   set->divM = 1./set->M;

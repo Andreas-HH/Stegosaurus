@@ -34,7 +34,7 @@ int FeatureCollection::addFeatureFile(const char* path, featureHeader* header, s
 
   // there should be some health-checking here!
   
-  printf("adding feature file \n");
+//   printf("adding feature file \n");
 //   if (header->method == 0) {
 //     if (cleanSet == 0) {
 //       cleanSet = openFeatureSet(path);
@@ -54,12 +54,12 @@ int FeatureCollection::addFeatureFile(const char* path, featureHeader* header, s
       set->mu_vec   = cleanSet->mu_vec;
       set->var_g    = cleanSet->var_g;
       
-      set->rate = header->rate;
+      set->prob = header->rate;
       set->id = bin;
       collection[bin] = set;
 //       printf("just defined collection[%i] \n", bin);
     } else {
-      printf("There already is something \n");
+//       printf("There already is something \n");
       newFeatureFile(steg, collection[bin], path);
     }
 //   }
@@ -84,10 +84,10 @@ featureSet* FeatureCollection::getFeatureSet(int index) {
 // // }
 
 
-featureSet* FeatureCollection::nextFeatureSet() {
-//   return collection[current_set++];
-  return 0;
-}
+// featureSet* FeatureCollection::nextFeatureSet() {
+// //   return collection[current_set++];
+//   return 0;
+// }
 
 int FeatureCollection::hasNext() {
   if (current_set < num_sets) return 1;
@@ -163,8 +163,10 @@ double StegoModel::doMMD(featureSet *clean, featureSet *stego) {
     mc = (mmdContext*) malloc(sizeof(mmdContext));
     mc->clean = clean;
     mc->stego = stego;
+    printf("calling init \n");
     initMMD(steg, *mc);
-//     estimateGamma(steg, *mc);
+    printf("calling gamma \n");
+    estimateGamma(steg, *mc);
   }
   mc->stego = stego;
 //   mc->stego = mc->clean;
@@ -172,6 +174,24 @@ double StegoModel::doMMD(featureSet *clean, featureSet *stego) {
 //   printf("used gamma: %g \n", mc->gamma);
   
   return mc->mmd;
+}
+
+void StegoModel::doMMDs() {
+  map< pair< int, int >, FeatureCollection* >::iterator fiter;
+  FeatureCollection::Iterator *citer;
+  featureSet *stego;
+  
+  for (fiter = collections.begin(); fiter != collections.end(); fiter++) {
+    if (fiter->second != 0) {
+      printf("<%i, %i> \n", fiter->first.first, fiter->first.second);
+      citer = fiter->second->iterator();
+      while (citer->hasNext()) {
+	stego = citer->next();
+	printf("doing set %g \n", stego->header->rate);
+	doMMD(cleanSet, stego);
+      }
+    }
+  }
 }
 
 
@@ -279,17 +299,41 @@ void StegoModel::openDirectory(const char* path) {
   free(str);
 }
 
-FeatureCollection::Iterator* StegoModel::getFeatureIterator(int video_birate, int ppair, int method, int accept) {
-//   if (method < 0 || method >= 10) return 0;
-//   if (accept < 0 || accept >= 8)  return 0;
-//   if (collections[method][accept] != 0) {
-//     return collections[method][accept]->iterator();
-//   }
-  if (collections[pair<int, int>(method, accept)] != 0) {
-    return collections[pair<int, int>(method, accept)]->iterator();
-  }
-  return 0;
+StegoModel::Iterator::Iterator(StegoModel* m) {
+  model = m;
+  iter = m->collections.begin();
 }
+
+bool StegoModel::Iterator::hasNext() {
+  return (iter != model->collections.end());
+}
+
+FeatureCollection* StegoModel::Iterator::next() {
+  FeatureCollection *fc = iter->second;
+  x = iter->first;
+  iter++;
+  return fc;
+}
+
+std::pair< int, int > StegoModel::Iterator::getX() {
+  return x;
+}
+
+StegoModel::Iterator* StegoModel::iterator() {
+  return new StegoModel::Iterator(this);
+}
+
+// FeatureCollection::Iterator* StegoModel::getFeatureIterator(int video_birate, int ppair, int method, int accept) {
+// //   if (method < 0 || method >= 10) return 0;
+// //   if (accept < 0 || accept >= 8)  return 0;
+// //   if (collections[method][accept] != 0) {
+// //     return collections[method][accept]->iterator();
+// //   }
+//   if (collections[pair<int, int>(method, accept)] != 0) {
+//     return collections[pair<int, int>(method, accept)]->iterator();
+//   }
+//   return 0;
+// }
 
 featureSet* StegoModel::getCleanSet() {
   return cleanSet;
@@ -326,10 +370,10 @@ double* StegoModel::getQPHist() {
   return steg->features->qp_vec;
 }
 
-FeatureCollection* StegoModel::getCollection() {
-//   return fcol; // fcol
-  return 0;
-}
+// FeatureCollection* StegoModel::getCollection() {
+// //   return fcol; // fcol
+//   return 0;
+// }
 
 int StegoModel::getSigmaDim() {
   if (mc == 0) return -1;

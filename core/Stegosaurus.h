@@ -89,6 +89,7 @@ typedef struct featureHeader {
 typedef struct featureSet {
   featureHeader *header;
   uint64_t dim;
+  uint64_t masked_dim;
   uint64_t M;
   int id;                                    // helps to find a set
   int gpu_matrix_width;                      // max number of matrix column in gpu memory
@@ -108,11 +109,12 @@ typedef struct featureSet {
   double *mu_g;
   double *mu_vec;
   double *var_g;
+  uint64_t *mask_thresh;
   int *mask_vec;
   double *max_vec;                           // vector of maximum entries
   double *min_vec;
   double *qp_vec;
-  double rate;
+  double prob;
   double divM;    
   myGaussian* gauss;
 } featureSet;
@@ -129,8 +131,8 @@ typedef struct klContext {
 } klContext;
 
 typedef struct mmdContext {
-  int n;
-  int cache;
+  uint64_t n;
+  uint64_t cache;
   int kernel_blockwidth;
   int kernel_gridwidth;
   double gamma;
@@ -195,7 +197,7 @@ public:
 //   int getCurrentSet();
   int addFeatureFile(const char *path, featureHeader *header, stegoContext *steg, featureSet *cleanSet);
   featureSet* getFeatureSet(int index);
-  featureSet* nextFeatureSet();
+//   featureSet* nextFeatureSet();
   FeatureCollection::Iterator* iterator();
   int hasNext();
 protected:
@@ -210,10 +212,23 @@ class StegoModel {
 public:
   StegoModel();
   ~StegoModel();
+  
+  class Iterator {
+  public:
+    Iterator(StegoModel* m);
+    bool hasNext();
+    pair< int, int > getX();
+    FeatureCollection* next();
+  protected:
+    StegoModel *model;
+    pair< int, int > x;
+    map< pair< int, int >, FeatureCollection* >::iterator iter;
+  };
  
   void addView(StegoView *view);
   void openDirectory(const char* path);
   void estimateMus();
+  void doMMDs();
   double doMMD(featureSet* clean, featureSet* stego);
   void setFeatures(featureSet *set);
   featureSet* getCleanSet(); // there must be some class-frontend eventually to allow DB!!!
@@ -226,9 +241,9 @@ public:
   double* getSigma();
   double *getDiag();
   int** getRanges();
-//   Iterator* getIterator();
-  FeatureCollection::Iterator* getFeatureIterator(int video_birate, int pair, int method, int accept);
-  FeatureCollection* getCollection();
+  StegoModel::Iterator* iterator();
+//   FeatureCollection::Iterator* getFeatureIterator(int video_birate, int pair, int method, int accept);
+//   FeatureCollection* getCollection();
 protected:
 //   int current_view;
   int **ranges;                              //  [block][row], row depends on if we have pair or hist features,, the first added feature file will determine this!
@@ -248,7 +263,7 @@ protected:
 // void storeGaussian(char *path, myGaussian *gauss);
 int readHeader(FILE *file, featureHeader *header);
 int closeFeatureSet(featureSet *set);
-int jumpToVector(featureSet *set, long vecnum);
+int jumpToVector(featureSet* set, uint64_t vecnum);
 void stegoRewind(featureSet *set);
 void pathConcat(const char* a, const char* b, char *result);
 
