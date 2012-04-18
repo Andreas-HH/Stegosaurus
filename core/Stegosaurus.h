@@ -63,7 +63,8 @@ const int QP_RANGE = 20;
 const int MAX_FILES = 20;
 const int num_coefs[] = {16, 4, 15};
 
-const double BIN_WIDTH = 0.001;
+// const double BIN_WIDTH = 0.001;
+typedef uint32_t store_elem;
 
 typedef struct myGaussian {
   int dim;
@@ -76,10 +77,10 @@ typedef struct myGaussian {
 
 typedef struct featureHeader {
   int video_bitrate;
-  char pair;
+  char pair;   // not necessary
   char slice_type;
   char method;
-  char using_rate;
+//   char using_rate;
   double prob;
   char accept;
   char qp_offset;
@@ -89,8 +90,11 @@ typedef struct featureHeader {
 
 typedef struct featureSet {
   featureHeader *header;
-  uint64_t dim;
-  uint64_t masked_dim;
+  int dim;
+  int hist_dim; // each for single qp
+  int pair_dim;
+  int uvsv_dim;
+  int masked_dim;
   uint64_t M;
   int id;                                    // helps to find a set
   int gpu_matrix_width;                      // max number of matrix column in gpu memory
@@ -101,7 +105,7 @@ typedef struct featureSet {
   char *name;
   long dataOffset;
 
-  uint32_t *counts;                               // want to make this long as soon as compression works
+  store_elem *counts;                               // want to make this long as soon as compression works
   double *vec;
   double *vec_g;
   double *ones_g;
@@ -110,7 +114,7 @@ typedef struct featureSet {
   double *mu_g;
   double *mu_vec;
   double *var_g;
-  uint64_t *mask_thresh;
+  uint64_t *mask_counts;
   int *mask_vec;
   double *max_vec;                           // vector of maximum entries
   double *min_vec;
@@ -238,7 +242,11 @@ public:
   featureSet* getCleanSet(); // there must be some class-frontend eventually to allow DB!!!
   
   int getDimension();
+  int getHistDim();
+  int getPairDim();
+  int getUvsVDim();
   int getSigmaDim();
+  int getQPRange();
   double* getMaxVector();                    // Vector of maximum elements
   double* getMuVector();                     // can be a particular feature vector or mu
   double* getQPHist();
@@ -279,7 +287,7 @@ __global__ void rescaleKernel(int dim, double *vec_g, double *min_g, double *max
 __global__ void varianceKernel(double divM, double *vec_g, double *mu_g, double *var_g);
 __global__ void normalizeKernel(double *vec_g, double *mu_g, double *var_g);
 
-__global__ void gammaKernel(int dim, int cache, int offset, int steps, int bw_x, int bw_y, double* down_g, double* right_g, double* results);
+__global__ void gammaKernel(int dim, uint64_t cache, int offset, int steps, uint64_t bw_x, uint64_t bw_y, double* down_g, double* right_g, double* results);
 __global__ void mmdKernel(double minus_gamma, double *cvc_g, double *cvs_g, double *svs_g);
 
 __global__ void subtract(int dim, double *vec, double *mu);
@@ -307,7 +315,7 @@ extern "C" {
   void initMMD(stegoContext* steg, mmdContext& mc);
   void closeMMD(mmdContext& mc);
   void estimateGamma(stegoContext* steg, mmdContext& mc);
-  void launchGammaKernel(mmdContext& mc, int dim, int bw_x, int bw_y, double* down_g, double* right_g, double* results_g);
+  void launchGammaKernel(mmdContext& mc, int dim, uint64_t bw_x, uint64_t bw_y, double* down_g, double* right_g, double* results_g);
   void estimateMMD(stegoContext* steg, mmdContext& mc);
   double applyKernel(stegoContext* steg, double gamma, int dim, double* v1_g, double* v2_g, double* temp_g);
   

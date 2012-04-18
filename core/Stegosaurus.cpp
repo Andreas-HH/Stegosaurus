@@ -32,22 +32,27 @@ int FeatureCollection::addFeatureFile(const char* path, featureHeader* header, s
   int bin;
   featureSet *set;
 
-  bin = (int) (header->prob*1000 + 0.5);
-  printf("using bin %i \n", bin);
+  bin = (int) (header->prob*10000 + 0.5);
+//   printf("using bin %i \n", bin);
   if (collection[bin] == 0) {
-    set = openFeatureSet(path, steg);
-    set->mask_vec = cleanSet->mask_vec;
-    set->max_g    = cleanSet->max_g;
-    set->min_g    = cleanSet->min_g;
-    set->mu_g     = cleanSet->mu_g;
-    set->mu_vec   = cleanSet->mu_vec;
-    set->var_g    = cleanSet->var_g;
-    
-    set->prob = header->prob;
-    set->id = bin;
-    collection[bin] = set;
+    if (cleanSet->header->slice_type == header->slice_type) { // maybe want more chekcs here
+      set = openFeatureSet(path, steg);
+      set->mask_vec = cleanSet->mask_vec;
+      set->mask_vec = cleanSet->mask_vec;
+      set->mask_counts = cleanSet->mask_counts;
+      set->max_g    = cleanSet->max_g;
+      set->min_g    = cleanSet->min_g;
+      set->mu_g     = cleanSet->mu_g;
+      set->mu_vec   = cleanSet->mu_vec;
+      set->var_g    = cleanSet->var_g;
+      
+      set->prob = header->prob;
+      set->id = bin;
+      collection[bin] = set;
+    }
   } else {
-    newFeatureFile(steg, collection[bin], path);
+    if (collection[bin]->header->slice_type == header->slice_type)
+      newFeatureFile(steg, collection[bin], path);
   }
 }
 
@@ -106,23 +111,43 @@ StegoModel::~StegoModel() {
 }
 
 void StegoModel::estimateMus() {
-  int i, j;
-  FeatureCollection::Iterator* iter;
-  
-  for (i = 0; i < 10; i++) {
-    for (j = 0; j < 8; j++) {
-      if (collections[pair< int, int >(i, j)] != 0) {
-	iter = collections[pair< int, int >(i, j)]->iterator();
-	j = collections[pair< int, int >(i, j)]->getNumSets();
-	for (i = 0; iter->hasNext(); i++) {
-	  steg->features = iter->next();
-	  printf("About to estimate mu with dim=%i, M=%i \n", steg->features->dim, steg->features->M);
-	  estimateMu(steg);
-	  progressChanged((double) i / (double) j);
-	}
+//   int i, j;
+//   FeatureCollection::Iterator* iter;
+//   
+//   for (i = 0; i < 10; i++) {
+//     for (j = 0; j < 8; j++) {
+//       if (collections[pair< int, int >(i, j)] != 0) {
+// 	iter = collections[pair< int, int >(i, j)]->iterator();
+// 	j = collections[pair< int, int >(i, j)]->getNumSets();
+// 	for (i = 0; iter->hasNext(); i++) {
+// 	  steg->features = iter->next();
+// 	  printf("About to estimate mu with dim=%i, M=%i \n", steg->features->dim, steg->features->M);
+// 	  estimateMu(steg);
+// 	  progressChanged((double) i / (double) j);
+// 	}
+//       }
+//     }
+//   }
+  map< pair< int, int >, FeatureCollection* >::iterator fiter;
+  FeatureCollection::Iterator *citer;
+//   featureSet *stego;
+  steg->features = cleanSet;
+  estimateMu(steg);
+  estimateSigma(steg);
+  qrHouseholder(steg);
+  for (fiter = collections.begin(); fiter != collections.end(); fiter++) {
+    if (fiter->second != 0) {
+//       printf("<%i, %i> \n", fiter->first.first, fiter->first.second);
+      citer = fiter->second->iterator();
+      while (citer->hasNext()) {
+	steg->features = citer->next();
+// 	printf("About to estimate mu with dim=%i, M=%i \n", steg->features->dim, steg->features->M);
+	estimateMu(steg);
+// 	progressChanged((double) i / (double) j);
       }
     }
   }
+  steg->features = cleanSet;
   modelChanged();
 }
 
@@ -133,9 +158,7 @@ double StegoModel::doMMD(featureSet *clean, featureSet *stego) {
     mc = (mmdContext*) malloc(sizeof(mmdContext));
     mc->clean = clean;
     mc->stego = stego;
-    printf("calling init \n");
     initMMD(steg, *mc);
-    printf("calling gamma \n");
     estimateGamma(steg, *mc);
   }
   mc->stego = stego;
@@ -149,19 +172,26 @@ double StegoModel::doMMD(featureSet *clean, featureSet *stego) {
 void StegoModel::doMMDs() {
   map< pair< int, int >, FeatureCollection* >::iterator fiter;
   FeatureCollection::Iterator *citer;
-  featureSet *stego;
+//   featureSet *stego;
   
+  mc = (mmdContext*) malloc(sizeof(mmdContext));
+  mc->clean = cleanSet;
+  initMMD(steg, *mc);
+  estimateGamma(steg, *mc);
+    
   for (fiter = collections.begin(); fiter != collections.end(); fiter++) {
     if (fiter->second != 0) {
       printf("<%i, %i> \n", fiter->first.first, fiter->first.second);
       citer = fiter->second->iterator();
       while (citer->hasNext()) {
-	stego = citer->next();
-	printf("doing set %g \n", stego->header->prob);
-	doMMD(cleanSet, stego);
+	mc->stego = citer->next();
+	printf("doing set %g \n", mc->stego->header->prob);
+	estimateMMD(steg, *mc);
+// 	doMMD(cleanSet, stego); // don't want to call this here, should be more low-level
       }
     }
   }
+  closeMMD(*mc);
 }
 
 
@@ -181,7 +211,7 @@ void StegoModel::modelChanged() {
   list< StegoView* >::iterator siter;
   
   for (siter = views.begin(); siter != views.end(); siter++) {
-    printf("updateing some view \n");
+//     printf("updateing some view \n");
     (*siter)->updateView();
   }
 }
@@ -215,10 +245,10 @@ void StegoModel::openDirectory(const char* path) {
   struct dirent *entry;
   
   if (root == NULL) {
-    printf("root is NULL \n");
+//     printf("root is NULL \n");
     return;
   }
-  printf("Root not NULL. \n");
+//   printf("Root not NULL. \n");
   while ((entry = readdir(root)) != NULL) {
     if (strstr(entry->d_name, ".fv") != NULL) {
       num_sets++;
@@ -276,7 +306,7 @@ void StegoModel::openFile(const char* path, int i, int num_sets) {
   featureHeader header;
   
   if (seenPaths->find(string(path)) != seenPaths->end()) {
-    printf("Das kenne ich doch schon :-@ \n");
+//     printf("Das kenne ich doch schon %s :-@ \n", path);
     return;
   }
   
@@ -288,6 +318,12 @@ void StegoModel::openFile(const char* path, int i, int num_sets) {
       ranges[k] = (int*) malloc(num_coefs[k]*sizeof(int));
       for (j = 0; j < num_coefs[k]; j++)
         ranges[k][j] = header.ranges[k][j];
+    }
+    for (k = 0; k < 3; k++) {
+      for (j = 0; j < num_coefs[k]; j++) {
+	ranges[k][j] = 2 * (int) header.ranges[k][j] + 1;
+// 	printf("ranges[%i][%i] = %i \n", k, j, ranges[k][j]);
+      }
     }
   }
   fclose(file);
@@ -349,6 +385,12 @@ featureSet* StegoModel::getCleanSet() {
   return cleanSet;
 }
 
+int StegoModel::getQPRange() {
+  if (cleanSet == 0)
+    return -1;
+  return cleanSet->header->qp_range;
+}
+
 
 int** StegoModel::getRanges() {
   return ranges;
@@ -361,6 +403,23 @@ int StegoModel::getDimension() {
   return steg->features->dim;
 }
 
+int StegoModel::getHistDim() {
+  if (cleanSet == 0)
+    return -1;
+  return cleanSet->hist_dim;
+}
+
+int StegoModel::getPairDim() {
+  if (cleanSet == 0)
+    return -1;
+  return cleanSet->pair_dim;
+}
+
+int StegoModel::getUvsVDim() {
+  if (cleanSet == 0)
+    return -1;
+  return cleanSet->uvsv_dim;
+}
 
 double* StegoModel::getMaxVector() {
   if (steg->features == NULL) 
@@ -391,11 +450,11 @@ int StegoModel::getSigmaDim() {
 }
 
 double* StegoModel::getSigma() {
-//   if (steg->features == NULL) 
-//     return NULL;
-//   return steg->features->gauss->qr;
-  if (mc == 0) return 0;
-  return mc->results;
+  if (steg->features == 0) 
+    return 0;
+  return steg->features->gauss->qr;
+//   if (mc == 0) return 0;
+//   return mc->results;
 }
 
 double* StegoModel::getDiag() {

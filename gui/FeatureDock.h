@@ -4,6 +4,8 @@
 #include <Stegosaurus.h>
 #include <QtGui>
 
+static const char *blockstrings[8] = {"clean", "L", "C_dc", "LC_dc", "C_ac", "LC_ac", "C", "LC"};
+static const char *slice_types[2]  = {"P", "B"};
 
 class FeatureWidget : public QWidget, public StegoView {
   Q_OBJECT

@@ -5,8 +5,8 @@
 #include <QtGui>
 
 
-const int hist_blocktype_ranges[] = {152, 48, 34}; // Luma, Chroma DC, Chroma AC
-const int pair_square_ranges[] = {31, 23, 17, 13, 9, 9}; // Luma left, Luma right, ...
+// const int hist_blocktype_ranges[] = {152, 48, 34}; // Luma, Chroma DC, Chroma AC
+// const int pair_square_ranges[] = {31, 23, 17, 13, 9, 9}; // Luma left, Luma right, ...
 const QColor block_colours[] = {Qt::darkBlue, Qt::darkRed, Qt::darkMagenta};
 
 class StegoWidget : public QWidget, public StegoView {
@@ -22,6 +22,8 @@ protected:
   int hd;
   int scale;
   int barHeight;
+//   unsigned char **ranges;
+  int **ranges;
   StegoModel *model;
 public slots:
   void newHorizD(int hd);
@@ -53,7 +55,8 @@ protected:
   
   void paintCache();
   void paintEvent(QPaintEvent *event);
-  void paintSquares(int x, int y, double *values, QPainter *painter);
+  void paintHistogramBox(QPainter* painter, double* v, int& x, int& y);
+  int paintSquares(QPainter* painter, double* v, int& x, int& y, int w, int h);
 };
 
 #endif  /*STEGOWIDGETS*/

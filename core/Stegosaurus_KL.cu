@@ -153,7 +153,7 @@ int estimateSigma(stegoContext *steg) {
   CUDA_CALL( cudaHostAlloc(&(gauss->sigma), dim*dim*sizeof(double), cudaHostAllocDefault));
   CUDA_CALL( cudaHostAlloc(&current_feature, dim*sizeof(double), cudaHostAllocDefault));
   CUDA_CALL( cudaMalloc(&mu_g, dim*sizeof(double)));
-  CUDA_CALL( cudaMalloc(&vec_g, dim*sizeof(double)));
+//   CUDA_CALL( cudaMalloc(&vec_g, dim*sizeof(double)));
   CUDA_CALL( cudaMalloc(&sigma_g, dim*fs->gpu_matrix_width*sizeof(double)));
 //   CUDA_CALL( cudaMalloc(&ones_g, dim*fs->gpu_matrix_width*sizeof(double)));
 //   CUDA_CALL( cudaMalloc(&ones2_g, dim*fs->gpu_matrix_width*sizeof(double)));
@@ -164,41 +164,41 @@ int estimateSigma(stegoContext *steg) {
   CUBLAS_CALL( cublasSetVector(dim, sizeof(double), gauss->mu, 1, mu_g, 1));
 //   CUBLAS_CALL( cublasDscal(*handle, dim, &(minus_one), mu_g, 1));
   
-//   for (i = 0; i < dim*dim; i++) {
-//     gauss->sigma[i] = 0;
-//   }
+  for (i = 0; i < dim*dim; i++) {
+    gauss->sigma[i] = 0;
+  }
   
-//   for (j = 0; j < (dim+fs->gpu_matrix_width-1)/fs->gpu_matrix_width; j++) { // (dim+fs->gpu_matrix_width-1)/fs->gpu_matrix_width
-//     posInSigma = j*fs->gpu_matrix_width;
-//     blockwidth = min(fs->gpu_matrix_width, dim-posInSigma);
-// //     CUBLAS_CALL( cublasSetMatrix(dim, blockwidth, sizeof(double), gauss->sigma+posInSigma*dim, dim, sigma_g, dim)); // add on cpu??
-//     initDArray(sigma_g, dim*blockwidth, tpb, 0.);
-//     printf("about to calc sigma, blockwidth=%i, dim=%i, pos=%i mw=%i\n", blockwidth, dim, posInSigma, fs->gpu_matrix_width);
-//     for (i = 0; i < fs->M; i++) { // fs->M
-//       read = readCounts(steg, steg->features, current_feature);
-//       if (read != dim) printf("read something wrong: %i \n", read);
+  for (j = 0; j < (dim+fs->gpu_matrix_width-1)/fs->gpu_matrix_width; j++) { // (dim+fs->gpu_matrix_width-1)/fs->gpu_matrix_width
+    posInSigma = j*fs->gpu_matrix_width;
+    blockwidth = min(fs->gpu_matrix_width, dim-posInSigma);
+//     CUBLAS_CALL( cublasSetMatrix(dim, blockwidth, sizeof(double), gauss->sigma+posInSigma*dim, dim, sigma_g, dim)); // add on cpu??
+    initDArray(sigma_g, dim*blockwidth, tpb, 0.);
+    printf("about to calc sigma, blockwidth=%i, dim=%i, pos=%i mw=%i\n", blockwidth, dim, posInSigma, fs->gpu_matrix_width);
+    for (i = 0; i < fs->M; i++) { // fs->M
+      read = readVectorNormalized(steg, steg->features, steg->features->vec_g);
+      if (read != dim) printf("read something wrong: %i \n", read);
 //       CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
-//       subtract<<<BLOCKS(dim,tpb),tpb>>>(dim, vec_g, mu_g);
-//       
-// //       cublasSetMatrix(dim, blockwidth, sizeof(double), gauss->sigma+j*fs->gpu_matrix_width*dim, dim, sigma_g, dim); // add on cpu??
-//       
-// //       CUBLAS_CALL( cublasDdot(*handle, dim, vec_g, 1, ones_g, 1, &checksum));
-// //       printf("vec checksum: %f, %i, %i \n", checksum, BLOCKS(dim,tpb), tpb);
-// //       CUBLAS_CALL( cublasDdot(*handle, dim*blockwidth, sigma_g, 1, ones_g, 1, &checksum));
-// //       printf("sigma checksum: %f \n", checksum);
-//       CUBLAS_CALL( cublasDger(*handle, dim, blockwidth, &(fs->divM), vec_g, 1, vec_g+j*fs->gpu_matrix_width, 1, sigma_g, dim)); // fs->divM
-//       if (i%1000 == 0) printf("%i \n", i);
-// //       cublasGetMatrix(dim, blockwidth, sizeof(double), sigma_g, dim, gauss->sigma+j*fs->gpu_matrix_width*dim, dim); // only do this with multiple blocks
-//     }
-//     stegoRewind(fs);
-//     CUBLAS_CALL( cublasGetMatrix(dim, blockwidth, sizeof(double), sigma_g, dim, gauss->sigma+posInSigma*dim, dim)); // only do this with multiple blocks
-//   }
+      subtract<<<BLOCKS(dim,tpb),tpb>>>(dim, vec_g, mu_g);
+      
+//       cublasSetMatrix(dim, blockwidth, sizeof(double), gauss->sigma+j*fs->gpu_matrix_width*dim, dim, sigma_g, dim); // add on cpu??
+      
+//       CUBLAS_CALL( cublasDdot(*handle, dim, vec_g, 1, ones_g, 1, &checksum));
+//       printf("vec checksum: %f, %i, %i \n", checksum, BLOCKS(dim,tpb), tpb);
+//       CUBLAS_CALL( cublasDdot(*handle, dim*blockwidth, sigma_g, 1, ones_g, 1, &checksum));
+//       printf("sigma checksum: %f \n", checksum);
+      CUBLAS_CALL( cublasDger(*handle, dim, blockwidth, &(fs->divM), steg->features->vec_g, 1, steg->features->vec_g+j*fs->gpu_matrix_width, 1, sigma_g, dim)); // fs->divM
+      if (i%1000 == 0) printf("%i \n", i);
+//       cublasGetMatrix(dim, blockwidth, sizeof(double), sigma_g, dim, gauss->sigma+j*fs->gpu_matrix_width*dim, dim); // only do this with multiple blocks
+    }
+    stegoRewind(fs);
+    CUBLAS_CALL( cublasGetMatrix(dim, blockwidth, sizeof(double), sigma_g, dim, gauss->sigma+posInSigma*dim, dim)); // only do this with multiple blocks
+  }
   
 //   CUDA_CALL( cudaFree(ones2_g));
 //   CUDA_CALL( cudaFree(ones_g));
   CUDA_CALL( cudaFree(sigma_g));
   CUDA_CALL( cudaFree(mu_g));
-  CUDA_CALL( cudaFree(vec_g));
+//   CUDA_CALL( cudaFree(vec_g));
   CUDA_CALL( cudaFreeHost(current_feature));
   
   return 0;
@@ -257,7 +257,7 @@ void applyQs(klContext *klc, double *qs_g, double *vs_g, int numqs, int numvs, i
   double *current_vec;
   
   for (j = 0; j < numqs; j++) {
-    printf("doing q num %i \n", j);
+//     printf("doing q num %i of %i (%i v's) \n", j, numqs, numvs);
     current_dim = cdim - j;
     currentq_g = qs_g + j*(klc->dim+1);
 //     CUBLAS_CALL( cublasSetVector(current_dim, sizeof(double), current_mat, 1, currentq_g, 1));
@@ -340,12 +340,12 @@ void qrHouseholder(stegoContext *steg) {
       current_dim = dim - posInSigma - j;
       currentq_g = qr_g + (j+1)*dim - current_dim;
       // find next q
-      printf("qr: current_dim = %i, posInSigma = %i, j= %i \n", current_dim, posInSigma, j);
+//       printf("qr: current_dim = %i, posInSigma = %i, j= %i \n", current_dim, posInSigma, j);
       CUBLAS_CALL( cublasDnrm2(*handle, current_dim, currentq_g, 1, &result)); // klc->dotp_g[0]
-      printf("norm = %g \n", result);
+//       printf("norm = %g \n", result);
 //       printPointerInfo(klc->dotp_g[0]);
       if (result > 0.00000000000001) { // != 0.
-	printf("norm not 0 \n");
+// 	printf("norm not 0 \n");
         constructQ<<<1,1>>>(currentq_g, diag_g, result, posInSigma+j); // klc->dotp_g[0]
 	CUBLAS_CALL( cublasDnrm2(*handle, current_dim, currentq_g, 1, &result)); // klc->dotp_g[0]
 	result = 1./result;

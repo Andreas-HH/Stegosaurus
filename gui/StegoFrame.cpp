@@ -82,7 +82,7 @@ void StegoFrame::openCollection() {
   if (fdial->exec()) {
     fileNames = fdial->selectedFiles();
     for (i = 0; i < fileNames.size(); i++) {
-      model->openFile(fileNames.at(i).toStdString().c_str(), i, fileNames.size());
+      model->openFile(fileNames.at(i).toStdString().c_str(), i+1, fileNames.size());
     }
   }
 //   model->collectionChanged();

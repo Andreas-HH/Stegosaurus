@@ -6,7 +6,7 @@ int readHeader(FILE *file, featureHeader *header) {
   
   header->video_bitrate = 3000;
 //   printf("pair: %i \n", header->pair);
-  fread(&header->pair, sizeof(char), 1, file);
+//   fread(&header->pair, sizeof(char), 1, file);
 //   printf("pair: %i \n", header->pair);
   fread(&header->slice_type, sizeof(char), 1, file);
 //   printf("slice_type: %i \n", header->slice_type);
@@ -27,18 +27,18 @@ int readHeader(FILE *file, featureHeader *header) {
   fread(&header->qp_range, sizeof(char), 1, file);
 //   printf("range: %i \n", header->qp_range);
   
-  if (header->pair) {
-    fread(&header->ranges[0][0], sizeof(unsigned char), 1, file);
-    fread(&header->ranges[0][1], sizeof(unsigned char), 1, file);
-    fread(&header->ranges[1][0], sizeof(unsigned char), 1, file);
-    fread(&header->ranges[1][1], sizeof(unsigned char), 1, file);
-    fread(&header->ranges[2][0], sizeof(unsigned char), 1, file);
-    fread(&header->ranges[2][1], sizeof(unsigned char), 1, file);
-  } else {
-    for (i = 0; i < 16; i++) fread(&header->ranges[0][0]+i, sizeof(unsigned char), 1, file);
-    for (i = 0; i < 4; i++)  fread(&header->ranges[1][0]+i, sizeof(unsigned char), 1, file);
-    for (i = 0; i < 15; i++) fread(&header->ranges[2][0]+i, sizeof(unsigned char), 1, file);
-  }
+//   if (header->pair) {
+//     fread(&header->ranges[0][0], sizeof(unsigned char), 1, file);
+//     fread(&header->ranges[0][1], sizeof(unsigned char), 1, file);
+//     fread(&header->ranges[1][0], sizeof(unsigned char), 1, file);
+//     fread(&header->ranges[1][1], sizeof(unsigned char), 1, file);
+//     fread(&header->ranges[2][0], sizeof(unsigned char), 1, file);
+//     fread(&header->ranges[2][1], sizeof(unsigned char), 1, file);
+//   } else {
+  for (i = 0; i < 16; i++) fread(&header->ranges[0][0]+i, sizeof(unsigned char), 1, file);
+  for (i = 0; i < 4; i++)  fread(&header->ranges[1][0]+i, sizeof(unsigned char), 1, file);
+  for (i = 0; i < 15; i++) fread(&header->ranges[2][0]+i, sizeof(unsigned char), 1, file);
+//   }
   
   return 0;
 }
@@ -47,12 +47,15 @@ int jumpToVector(featureSet *set, uint64_t vecnum) {
   int i;
   uint64_t seenvs = 0ull;
   
+//   printf("searching vector %d \n", vecnum);
+  
   for (i = 0; seenvs <= vecnum && i < set->num_files; i++) {
     seenvs += set->vsPerFile[i];
   }
   seenvs -= set->vsPerFile[--i];
   set->current_file = i;
-  fseek(set->files[set->current_file], set->dataOffset + (long) ((vecnum-seenvs)*set->dim), SEEK_SET);
+//   printf("found pos. %d in file %i \n", vecnum-seenvs, set->current_file);
+  fseek(set->files[set->current_file], set->dataOffset + (long) ((vecnum-seenvs)*set->dim*sizeof(store_elem)), SEEK_SET);
 
   return 0;
 }

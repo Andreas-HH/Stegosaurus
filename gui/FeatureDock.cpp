@@ -9,7 +9,7 @@ FeatureWidget::FeatureWidget(QWidget* parent, StegoModel* model): QWidget(parent
   fview = new QTreeView(this);
   treeModel = new QStandardItemModel();
   labels = new QStringList();
-  *labels << tr("probability") << tr("# vectors") << tr("# files") << tr("dimension") << tr("type");
+  *labels << tr("p_hide") << tr("# vectors") << tr("dimension") << tr("# files") << tr("type") << tr("qp offset") << tr("qp range");
   treeModel->setHorizontalHeaderLabels(*labels);
   fview->setModel(treeModel);
 
@@ -39,9 +39,11 @@ void FeatureWidget::updateCollection() {
     set1 = set;
     items.append(new QStandardItem(tr("%1").arg(0)));
     items.append(new QStandardItem(tr("%1").arg(set->M)));
-    items.append(new QStandardItem(tr("%1").arg(set->num_files)));
     items.append(new QStandardItem(tr("%1").arg(set->dim)));
-    items.append(new QStandardItem(tr("%1").arg((int)set->header->slice_type)));
+    items.append(new QStandardItem(tr("%1").arg(set->num_files)));
+    items.append(new QStandardItem(tr("%1").arg(slice_types[(int)set->header->slice_type])));
+    items.append(new QStandardItem(tr("%1").arg((int) set->header->qp_offset)));
+    items.append(new QStandardItem(tr("%1").arg((int) set->header->qp_range)));
     treeModel->appendRow(items);
     items.clear();
   }
@@ -56,14 +58,16 @@ void FeatureWidget::updateCollection() {
       currentMethod = miter->getX().first;
       parentM = new QStandardItem(tr("%1").arg(miter->getX().first));
     }
-    parentA = new QStandardItem(tr("%1").arg(miter->getX().second));
+    parentA = new QStandardItem(tr("%1").arg(blockstrings[miter->getX().second]));
     while (iter->hasNext()) {
       set = iter->next();
       items.append(new QStandardItem(tr("%1").arg(set->prob)));
       items.append(new QStandardItem(tr("%1").arg(set->M)));
-      items.append(new QStandardItem(tr("%1").arg(set->num_files)));
       items.append(new QStandardItem(tr("%1").arg(set->dim)));
-      items.append(new QStandardItem(tr("%1").arg((int)set->header->slice_type)));
+      items.append(new QStandardItem(tr("%1").arg(set->num_files)));
+      items.append(new QStandardItem(tr("%1").arg(slice_types[(int)set->header->slice_type])));
+      items.append(new QStandardItem(tr("%1").arg((int) set->header->qp_offset)));
+      items.append(new QStandardItem(tr("%1").arg((int) set->header->qp_range)));
       parentA->appendRow(items);
       items.clear();
     }
@@ -75,8 +79,8 @@ void FeatureWidget::updateCollection() {
 }
 
 void FeatureWidget::selection(QModelIndex mi) {
-  printf("selected: %i, %i \n", mi.column(), mi.row());
-  printf("and parent: %i, %i \n", mi.parent().column(), mi.parent().row());
+//   printf("selected: %i, %i \n", mi.column(), mi.row());
+//   printf("and parent: %i, %i \n", mi.parent().column(), mi.parent().row());
 }
 
 

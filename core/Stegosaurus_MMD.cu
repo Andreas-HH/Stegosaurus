@@ -1,7 +1,7 @@
 #include "Stegosaurus.h"
 
 
-__global__ void gammaKernel(int dim, int cache, int offset, int steps, int bw_x, int bw_y, double *down_g, double *right_g, double *results) {
+__global__ void gammaKernel(int dim, uint64_t cache, int offset, int steps, uint64_t bw_x, uint64_t bw_y, double *down_g, double *right_g, double *results) {
   int i;
   int idx_x = threadIdx.x + blockIdx.x*blockDim.x;
   int idx_y = threadIdx.y + blockIdx.y*blockDim.y;
@@ -34,14 +34,14 @@ __global__ void mmdKernel(double minus_gamma, double *cvc_g, double *cvs_g, doub
 }
 
 void initMMD(stegoContext *steg, mmdContext& mc) {
-  uint64_t dim = mc.clean->dim;
+  int dim = mc.clean->dim;
 //   int tpb = steg->gpu_c->threads_per_block;
   
   mc.n = mc.clean->M;
   mc.kernel_blockwidth = (int) sqrt(steg->gpu_c->threads_per_block);
   mc.cache   = min(mc.n, (uint64_t) (sqrt(steg->gpu_c->doublesOnGPU / 3l + (long) SQUARE(dim) * 4l / 9l) - (long)dim * 2l / 3l));
   mc.kernel_gridwidth = (mc.cache + mc.kernel_blockwidth-1)/mc.kernel_blockwidth;
-//   printf("cache: %i, kbw: %i \n", mc.cache, mc.kernel_blockwidth);
+  printf("cache: %d, kbw: %i \n", mc.cache, mc.kernel_blockwidth);
   
   CUDA_CALL( cudaMalloc(&mc.clean_vectors_down_g, dim*mc.cache*sizeof(double)));
   CUDA_CALL( cudaMalloc(&mc.clean_vectors_right_g, dim*mc.cache*sizeof(double)));
@@ -64,7 +64,7 @@ void closeMMD(mmdContext& mc) {
   CUDA_CALL( cudaFreeHost(mc.results));
 }
 
-void launchGammaKernel(mmdContext& mc, int dim, int bw_x, int bw_y, double* down_g, double* right_g, double* results_g) {
+void launchGammaKernel(mmdContext& mc, int dim, uint64_t bw_x, uint64_t bw_y, double* down_g, double* right_g, double* results_g) {
   int i;
   int step_size = 128;
   dim3 grid, block;
@@ -85,23 +85,25 @@ void estimateGamma(stegoContext *steg, mmdContext& mc) {
   featureSet *cleanSet = mc.clean;
   uint64_t M = mc.n;
   uint64_t l;
-  uint64_t dim = cleanSet->dim;
+  int dim = cleanSet->dim;
   priority_queue< double > q;
 //   time_t start;
   
   for (pos_x = 0ull; pos_x < M; pos_x += mc.cache) {
     bw_x = min(mc.cache, M-pos_x);
+//     printf("bw_x: %d, pos_x: %d \n", bw_x, pos_x);
     jumpToVector(mc.clean, pos_x);
-    for (i = 0; i < bw_x; i++) {
+    for (i = 0ull; i < bw_x; i++) {
       readVectorRescaled(steg, mc.clean, mc.clean_vectors_right_g + i*dim);
     }
     for (pos_y = pos_x; pos_y < M; pos_y += mc.cache) {
       bw_y = min(mc.cache, M-pos_y);
+//       printf("bw_y: %d, pos_y: %d \n", bw_y, pos_y);
       jumpToVector(mc.clean, pos_y);
-      for (i = 0; i < bw_y; i++) {
+      for (i = 0ull; i < bw_y; i++) {
         readVectorRescaled(steg, mc.clean, mc.clean_vectors_down_g + i*dim);
       }
-//       printf("launching kernel with parameters (%i, %i), (%i, %i), bw_x = %i, bw_y = %i", BLOCKS(bw_x, mc.kernel_blockwidth), BLOCKS(bw_y, mc.kernel_blockwidth), mc.kernel_blockwidth, mc.kernel_blockwidth, bw_x, bw_y);
+//       printf("launching kernel with parameters (%i, %i), (%i, %i), bw_x = %i, bw_y = %i \n", BLOCKS(bw_x, mc.kernel_blockwidth), BLOCKS(bw_y, mc.kernel_blockwidth), mc.kernel_blockwidth, mc.kernel_blockwidth, bw_x, bw_y);
       initDArray(mc.results_c_vs_c_g, SQUARE(mc.cache), tpb, 0.);
 //       start = time(NULL);
       launchGammaKernel(mc, dim, bw_x, bw_y, mc.clean_vectors_down_g, mc.clean_vectors_right_g, mc.results_c_vs_c_g);
@@ -120,7 +122,7 @@ void estimateGamma(stegoContext *steg, mmdContext& mc) {
     }
   }
   stegoRewind(mc.clean);
-  stegoRewind(mc.stego);
+//   stegoRewind(mc.stego);
   
   printf("queue size: %i, M = %i, expected size: %i \n", q.size(), M, M*(M-1ull)/2ull);
   for (l = 0; l < M*(M-1ull)/4ull; l++) {
@@ -135,7 +137,7 @@ void estimateMMD(stegoContext *steg, mmdContext& mc) {
   uint64_t bw_x, bw_y;
   uint64_t pos_x, pos_y;
   int tpb = steg->gpu_c->threads_per_block;
-  uint64_t dim = mc.clean->dim;
+  int dim = mc.clean->dim;
   uint64_t M = mc.n;
   double mmd = 0.;
   time_t start = time(NULL);
@@ -150,7 +152,7 @@ void estimateMMD(stegoContext *steg, mmdContext& mc) {
     for (i = 0; i < bw_x; i++) {
       readVectorRescaled(steg, mc.stego, mc.stego_vectors_right_g + i*dim);
     }
-    for (pos_y = 0ull; pos_y < (long) M; pos_y += mc.cache) {
+    for (pos_y = 0ull; pos_y < M; pos_y += mc.cache) {
       bw_y = min(mc.cache, M-pos_y);
       jumpToVector(mc.clean, pos_y);
       for (i = 0; i < bw_y; i++) {
@@ -184,6 +186,7 @@ void estimateMMD(stegoContext *steg, mmdContext& mc) {
   stegoRewind(mc.clean);
   stegoRewind(mc.stego);
   mmd /= (double) (M * (M-1));
+  mmd = sqrt(mmd);
   printf("have some mmd: %g [%is]\n", mmd, time(NULL)-start);
   mc.mmd = mmd;
 }
