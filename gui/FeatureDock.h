@@ -33,4 +33,13 @@ public:
   FeatureDock(QWidget *parent = 0, StegoModel *model = 0);
 };
 
+class FeatureSelectionItem : public QStandardItem {
+public:
+  FeatureSelectionItem(const QString &text, featureSet *set);
+  featureSet *set; // maybe a get method would be nice
+protected:
+//   StegoModel *model;
+//   featureSet *set;
+};
+
 #endif  /*STEGOFDOCK*/

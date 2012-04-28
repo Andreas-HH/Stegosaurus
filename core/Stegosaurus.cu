@@ -35,17 +35,19 @@ __global__ void rescaleKernel(int dim, double *vec_g, double *min_g, double *max
   }
 }
 
-__global__ void varianceKernel(double divM, double* vec_g, double* mu_g, double* var_g) {
+__global__ void varianceKernel(double divM, double* vec_g, double* mu_g, double* var_g, int dim) {
   int idx = threadIdx.x + blockIdx.x*blockDim.x;
   double delta = mu_g[idx] - vec_g[idx];
   
-  var_g[idx] += delta * delta * divM;
+  if (idx > dim)
+    var_g[idx] += delta * delta * divM;
 }
 
-__global__ void normalizeKernel(double *vec_g, double *mu_g, double *var_g) {
+__global__ void normalizeKernel(double *vec_g, double *mu_g, double *var_g, int dim) {
   int idx = threadIdx.x + blockIdx.x*blockDim.x;
   
-  vec_g[idx] = (vec_g[idx] - mu_g[idx]) * var_g[idx];
+  if (idx < dim)
+    vec_g[idx] = (vec_g[idx] - mu_g[idx]) * var_g[idx];
 }
 
 inline void initDArray(double* m, int dim, int tpb, double val) {
@@ -275,7 +277,7 @@ int estimateScalingParameters(stegoContext *steg, featureSet *set) {
   stegoRewind(set);
   for (i = 0ull; i < M; i++) {
     readVectorL1D(steg, set, set->vec_g);
-    varianceKernel<<<BLOCKS(dim,tpb),tpb>>>(set->divM, set->vec_g, set->mu_g, set->var_g);
+    varianceKernel<<<BLOCKS(dim,tpb),tpb>>>(set->divM, set->vec_g, set->mu_g, set->var_g, dim);
   }
   stegoRewind(set);
   CUBLAS_CALL( cublasGetVector(dim, sizeof(double), set->max_g, 1, set->max_vec, 1));
@@ -336,9 +338,9 @@ int newFeatureFile(stegoContext *steg, featureSet* set, const char* path) {
     endAction(set);
   }
   
-  for (i = 0; i < set->num_files; i++) {
-    printf("\"%s\" (%s), %i \n", set->paths[i], path, strlen(path));
-  }
+//   for (i = 0; i < set->num_files; i++) {
+//     printf("\"%s\" (%s), %i \n", set->paths[i], path, strlen(path));
+//   }
   
   return 0;
 }
@@ -425,7 +427,7 @@ int readVectorNormalized(stegoContext *steg, featureSet *set, double *vec_g) {
   int read = readVectorL1D(steg, set, vec_g);
   int tpb = steg->gpu_c->threads_per_block;
   
-  normalizeKernel<<<BLOCKS(set->dim, tpb), tpb>>>(vec_g, set->mu_g, set->var_g);
+  normalizeKernel<<<BLOCKS(set->dim, tpb), tpb>>>(vec_g, set->mu_g, set->var_g, set->dim);
   
   return read;
 }

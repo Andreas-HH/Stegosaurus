@@ -287,8 +287,8 @@ __global__ void initDArrayKernel(double *m, int dim, double val);
 __global__ void compareMax(int dim, double *current_max, double *new_features);
 __global__ void compareMin(int dim, double *current_min, double *new_features);
 __global__ void rescaleKernel(int dim, double *vec_g, double *min_g, double *max_g);
-__global__ void varianceKernel(double divM, double *vec_g, double *mu_g, double *var_g);
-__global__ void normalizeKernel(double *vec_g, double *mu_g, double *var_g);
+__global__ void varianceKernel(double divM, double *vec_g, double *mu_g, double *var_g, int dim);
+__global__ void normalizeKernel(double* vec_g, double* mu_g, double* var_g, int dim);
 
 __global__ void gammaKernel(int dim, uint64_t cache, int offset, int steps, uint64_t bw_x, uint64_t bw_y, double* down_g, double* right_g, double* results);
 __global__ void mmdKernel(double minus_gamma, double *cvc_g, double *cvs_g, double *svs_g);

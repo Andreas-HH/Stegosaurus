@@ -111,30 +111,15 @@ StegoModel::~StegoModel() {
 }
 
 void StegoModel::estimateMus() {
-//   int i, j;
-//   FeatureCollection::Iterator* iter;
-//   
-//   for (i = 0; i < 10; i++) {
-//     for (j = 0; j < 8; j++) {
-//       if (collections[pair< int, int >(i, j)] != 0) {
-// 	iter = collections[pair< int, int >(i, j)]->iterator();
-// 	j = collections[pair< int, int >(i, j)]->getNumSets();
-// 	for (i = 0; iter->hasNext(); i++) {
-// 	  steg->features = iter->next();
-// 	  printf("About to estimate mu with dim=%i, M=%i \n", steg->features->dim, steg->features->M);
-// 	  estimateMu(steg);
-// 	  progressChanged((double) i / (double) j);
-// 	}
-//       }
-//     }
-//   }
   map< pair< int, int >, FeatureCollection* >::iterator fiter;
   FeatureCollection::Iterator *citer;
 //   featureSet *stego;
   steg->features = cleanSet;
+  startAction(steg->features);
   estimateMu(steg);
   estimateSigma(steg);
-  qrHouseholder(steg);
+//   qrHouseholder(steg);
+  endAction(steg->features);
   for (fiter = collections.begin(); fiter != collections.end(); fiter++) {
     if (fiter->second != 0) {
 //       printf("<%i, %i> \n", fiter->first.first, fiter->first.second);
@@ -142,7 +127,9 @@ void StegoModel::estimateMus() {
       while (citer->hasNext()) {
 	steg->features = citer->next();
 // 	printf("About to estimate mu with dim=%i, M=%i \n", steg->features->dim, steg->features->M);
+	startAction(steg->features);
 	estimateMu(steg);
+	endAction(steg->features);
 // 	progressChanged((double) i / (double) j);
       }
     }
