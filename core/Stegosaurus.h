@@ -102,6 +102,7 @@ typedef struct featureSet {
   int current_file;
   uint64_t *vsPerFile;
   FILE **files;
+  char **paths;
   char *name;
   long dataOffset;
 
@@ -123,7 +124,7 @@ typedef struct featureSet {
   double divM;    
   myGaussian* gauss;
   
-  set<string> *paths;
+//   set<string> *paths;
 } featureSet;
 
 typedef struct klContext {
@@ -275,6 +276,8 @@ protected:
 
 // void storeGaussian(char *path, myGaussian *gauss);
 int readHeader(FILE *file, featureHeader *header);
+void startAction(featureSet *set);
+void endAction(featureSet *set);
 int closeFeatureSet(featureSet *set);
 int jumpToVector(featureSet* set, uint64_t vecnum);
 void stegoRewind(featureSet *set);

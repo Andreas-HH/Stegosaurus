@@ -69,6 +69,24 @@ void stegoRewind(featureSet *set) {
   set->current_file = 0;
 }
 
+void startAction(featureSet *set) {
+  int i;
+  
+  for (i = 0; i < set->num_files; i++) {
+    set->files[i] = fopen(set->paths[i], "r");
+  }
+  stegoRewind(set);
+}
+
+void endAction(featureSet *set) {
+  int i;
+  
+  for (i = 0; i < set->num_files; i++) {
+    fclose(set->files[i]);
+    set->files[i] = 0;
+  }
+}
+
 // void storeGaussian(char* path, myGaussian* gauss) {
 //   
 // }

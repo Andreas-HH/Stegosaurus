@@ -23,3 +23,4 @@ SOURCES += core/Stegosaurus.cpp \
            gui/StegoFrame.cpp \
            gui/StegoWidgets.cpp \
            gui/TableDock.cpp
+QT      += xml

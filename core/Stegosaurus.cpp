@@ -176,6 +176,7 @@ void StegoModel::doMMDs() {
   
   mc = (mmdContext*) malloc(sizeof(mmdContext));
   mc->clean = cleanSet;
+  startAction(mc->clean);
   initMMD(steg, *mc);
   estimateGamma(steg, *mc);
     
@@ -186,11 +187,14 @@ void StegoModel::doMMDs() {
       while (citer->hasNext()) {
 	mc->stego = citer->next();
 	printf("doing set %g \n", mc->stego->header->prob);
+	startAction(mc->stego);
 	estimateMMD(steg, *mc);
+	endAction(mc->stego);
 // 	doMMD(cleanSet, stego); // don't want to call this here, should be more low-level
       }
     }
   }
+  endAction(mc->clean);
   closeMMD(*mc);
 }
 

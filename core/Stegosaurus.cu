@@ -66,8 +66,11 @@ int closeFeatureSet(featureSet *set) {
   int i;
   
   for (i = 0; i < set->num_files; i++) {
-    fclose(set->files[i]);
+    if (set->files[i] != 0)
+      fclose(set->files[i]);
   }
+  free(set->files);
+  free(set->paths);
   
   if (set->header->method == 0) {
     CUDA_CALL( cudaFree(set->max_g));
@@ -174,6 +177,7 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
   set->uvsv_dim = uvsv_dim;
   set->dim = dim;
   set->files = (FILE**) malloc(MAX_FILES*sizeof(FILE*));//file;
+  set->paths = (char**) malloc(MAX_FILES*sizeof(char*));
   set->vsPerFile = (uint64_t*) malloc(MAX_FILES*sizeof(uint64_t));
   set->files[0] = file;
   set->num_files = 1;
@@ -214,6 +218,8 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
     printf("Wrong dimension?? \n");
   }
 
+  set->paths[0] = (char*) malloc((strlen(path)+1)*sizeof(char));
+  memcpy(set->paths[0], path, (strlen(path)+1)*sizeof(char));
   set->vsPerFile[0] = M;
   set->M = M;
   set->divM = 1./(double) M;
@@ -223,6 +229,8 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
   if (header->method == 0) {
     estimateScalingParameters(steg, set);
   }
+  fclose(file);
+  set->files[0] = 0;
 
 //   printf("done. \n");
   return set;
@@ -290,6 +298,7 @@ int estimateScalingParameters(stegoContext *steg, featureSet *set) {
 //   printf("vsPerFile[0] = %d \n", set->vsPerFile[0]);
 //   printf("vsPerFile[1] = %d \n", set->vsPerFile[1]);
 //   printf("vsPerFile[2] = %d \n", set->vsPerFile[2]);
+  return 0;
 }
 
 int newFeatureFile(stegoContext *steg, featureSet* set, const char* path) {
@@ -311,15 +320,25 @@ int newFeatureFile(stegoContext *steg, featureSet* set, const char* path) {
 //     printf("1 vecotr :D, read %i elements \n", read);
     localM++;
   }
+  fclose(file);
 //   printf("it contains %ld vectors xD, read = %i \n", localM, read);
   set->M += localM;
   set->vsPerFile[set->num_files] = localM;
   set->divM = 1./set->M;
-  set->files[set->num_files] = file;
+  set->files[set->num_files] = 0;
+  set->paths[set->num_files] = (char*) malloc((strlen(path)+1)*sizeof(char));
+  memcpy(set->paths[set->num_files], path, (strlen(path)+1)*sizeof(char));
   set->num_files++;
-  stegoRewind(set);
-  if (header.method == 0)
+//   stegoRewind(set);
+  if (header.method == 0) {
+    startAction(set);
     estimateScalingParameters(steg, set);
+    endAction(set);
+  }
+  
+  for (i = 0; i < set->num_files; i++) {
+    printf("\"%s\" (%s), %i \n", set->paths[i], path, strlen(path));
+  }
   
   return 0;
 }
@@ -328,8 +347,8 @@ int newFeatureFile(stegoContext *steg, featureSet* set, const char* path) {
 int readCounts(featureSet *set) {
   int i;
   int read = 0;
-  double *vec_g;
-  double sum;
+//   double *vec_g;
+//   double sum;
   
   read = fread(set->counts, sizeof(store_elem), set->dim, set->files[set->current_file]);//readCountVector(vec, set->counts, set->dim, set->files[set->current_file]);
   if (read == 0) {
