@@ -121,10 +121,9 @@ typedef struct featureSet {
   double *min_vec;
   double *qp_vec;
   double prob;
-  double divM;    
+  double divM;
+  double mmd;
   myGaussian* gauss;
-  
-//   set<string> *paths;
 } featureSet;
 
 typedef struct klContext {
@@ -207,7 +206,7 @@ public:
   featureSet* getFeatureSet(int index);
 //   featureSet* nextFeatureSet();
   FeatureCollection::Iterator* iterator();
-  int hasNext();
+//   int hasNext();
 protected:
   map < int, featureSet* > collection;
   featureHeader header;
@@ -235,7 +234,7 @@ public:
  
   void addView(StegoView *view);
   void openDirectory(const char *path);
-  void openFile(const char* path, int i, int num_sets);
+    int openFile(const char* path, int i, int num_sets, featureHeader& header);
   void estimateMus();
   void doMMDs();
   double doMMD(featureSet* clean, featureSet* stego);
@@ -255,22 +254,18 @@ public:
   double *getDiag();
   int** getRanges();
   StegoModel::Iterator* iterator();
-//   FeatureCollection::Iterator* getFeatureIterator(int video_birate, int pair, int method, int accept);
-//   FeatureCollection* getCollection();
+  
+  void collectionChanged();
 protected:
-//   int current_view;
-  int **ranges;                              //  [block][row], row depends on if we have pair or hist features,, the first added feature file will determine this!
+  int **ranges;                             
   list< StegoView* > views;
   map< pair< int, int >, FeatureCollection* > collections;
   set<string> *seenPaths;
-//   FeatureCollection *collections[10][8];           // [method][accept] ... [0] = clean, [1] = plusminus1, ... 
-//   map< int, vector< map< int, vector< FeatureCollection* > > > > collections; // video_bitrate -> hist/pair -> method -> accept
   stegoContext *steg;
   featureSet *cleanSet;
   mmdContext *mc;
-  void modelChanged();                       // asks all views to update themselves
+  void modelChanged();                      // asks all views to update themselves
   void progressChanged(double p);
-  void collectionChanged();
 };
 
 
@@ -284,6 +279,7 @@ void stegoRewind(featureSet *set);
 void pathConcat(const char* a, const char* b, char *result);
 
 __global__ void initDArrayKernel(double *m, int dim, double val);
+__global__ void finishMax(int dim, double* min, double* max);
 __global__ void compareMax(int dim, double *current_max, double *new_features);
 __global__ void compareMin(int dim, double *current_min, double *new_features);
 __global__ void rescaleKernel(int dim, double *vec_g, double *min_g, double *max_g);

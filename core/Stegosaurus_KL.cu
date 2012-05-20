@@ -88,7 +88,8 @@ int estimateMu(stegoContext *steg) {
 
 //   printf("uploaded stuff \n");
   for (i = 0ull; i < fs->M; i++) { // 
-     read = readVectorRescaled(steg, steg->features, vec_g);
+     read = readVectorL1D(steg, steg->features, vec_g);
+//      printf("read = %i \n", read);
      if (read != dim) printf("read something wrong: %i \n", read);
 //      else printf("Read something right! \n");
 //      CUBLAS_CALL( cublasSetVector(dim, sizeof(double), current_feature, 1, vec_g, 1));
@@ -98,18 +99,19 @@ int estimateMu(stegoContext *steg) {
 //   computeQPHistogram(steg, fs->mu_g, 20, fs->qp_g);
 //   CUBLAS_CALL( cublasGetVector(20, sizeof(double), fs->qp_g, 1, fs->qp_vec, 1));
   CUBLAS_CALL( cublasGetVector(dim, sizeof(double), mu_g, 1, fs->gauss->mu, 1));
+//   printf("downloaded mu \n");
 //   CUBLAS_CALL( cublasGetVector(dim, sizeof(double), max_g, 1, fs->max_vec, 1));
 //   CUBLAS_CALL( cublasGetVector(dim, sizeof(double), min_g, 1, fs->min_vec, 1));
   stegoRewind(fs);
   
 //   printf("computing qp histogram \n");
-  for (i = 0; i < QP_RANGE; i++) {
-    fs->qp_vec[i] = 0;
-    for (int j = 0; j < dim/QP_RANGE; j++) {
-      fs->qp_vec[i] += fs->gauss->mu[i*dim/QP_RANGE+j];
-    }
-    fs->qp_vec[i] *= 100./((double) dim);
-  }
+//   for (i = 0; i < QP_RANGE; i++) {
+//     fs->qp_vec[i] = 0;
+//     for (int j = 0; j < dim/QP_RANGE; j++) {
+//       fs->qp_vec[i] += fs->gauss->mu[i*dim/QP_RANGE+j];
+//     }
+//     fs->qp_vec[i] *= 100./((double) dim);
+//   }
   
 //   printf("sum over mu: ");
 //   for (i = 0; i < dim; i++) {

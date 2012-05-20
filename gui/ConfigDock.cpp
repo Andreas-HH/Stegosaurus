@@ -14,8 +14,8 @@ ConfigWidget::ConfigWidget(HistogramWidget *hw, PairWidget *pw, QWidget* parent)
   hdSlider->setTickPosition(QSlider::TicksBelow);
   scSlider = new QSlider(Qt::Horizontal);
   scSlider->setMinimum(1);
-  scSlider->setMaximum(200);
-  scSlider->setTickInterval(5);
+  scSlider->setMaximum(500);
+  scSlider->setTickInterval(10);
   scSlider->setTickPosition(QSlider::TicksBelow);
   bhSlider = new QSlider(Qt::Horizontal);
   bhSlider->setMinimum(1);

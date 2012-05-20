@@ -8,6 +8,16 @@ __global__ void initDArrayKernel(double *m, int dim, double val) {
     m[idx] = val;
 }
 
+__global__ void finishMax(int dim, double *min, double *max) {
+  int idx = threadIdx.x + blockIdx.x*blockDim.x;
+  
+  if (idx < dim) {
+    max[idx] = max[idx] - min[idx];
+    if (max[idx] < 0.0000001)
+      max[idx] = 1.;
+  }
+}
+
 __global__ void compareMax(int dim, double *current_max, double *new_features) {
   int idx = threadIdx.x + blockIdx.x*blockDim.x;
   
@@ -270,6 +280,7 @@ int estimateScalingParameters(stegoContext *steg, featureSet *set) {
     compareMin<<<BLOCKS(dim,tpb),tpb>>>(dim, set->min_g, set->vec_g);
     cublasDaxpy(steg->gpu_c->handle, dim, &(set->divM), set->vec_g, 1, set->mu_g, 1);
   }
+  finishMax<<<BLOCKS(dim,tpb),tpb>>>(dim, set->min_g, set->max_g);
   for (j = 0ull; j < set->dim; j++) {
     if (set->mask_vec[j] > set->M/100ull) set->mask_vec[j] = 1;
   }
@@ -408,7 +419,7 @@ int readVectorL1D(stegoContext *steg, featureSet *set, double *vec_g) {
   read = readCounts(set);
   scaleL1D(steg, set->dim, set->vec, vec_g, set->ones_g);
   
-  if (read != set->dim) printf("wtf! \n");
+  if (read != set->dim) printf("read something wrong! \n");
   return read;
 }
 
@@ -416,8 +427,6 @@ int readVectorRescaled(stegoContext *steg, featureSet *set, double *vec_g) {
   int read = readVectorL1D(steg, set, vec_g);
   int tpb = steg->gpu_c->threads_per_block;
 
-//   CUBLAS_CALL( cublasSetVector(set->dim, sizeof(double), set->vec, 1, vec_g, 1));
-//   scaleL1D(steg, set->dim, set->vec, vec_g, set->ones_g);
   rescaleKernel<<<BLOCKS(set->dim, tpb), tpb>>>(set->dim, vec_g, set->min_g, set->max_g);
   
   return read;

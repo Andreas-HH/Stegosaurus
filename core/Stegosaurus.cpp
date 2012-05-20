@@ -64,10 +64,10 @@ featureSet* FeatureCollection::getFeatureSet(int index) {
   return 0;
 }
 
-int FeatureCollection::hasNext() {
-  if (current_set < num_sets) return 1;
-  else return 0;
-}
+// int FeatureCollection::hasNext() {
+//   if (current_set < num_sets) return 1;
+//   else return 0;
+// }
 
 FeatureCollection::Iterator* FeatureCollection::iterator() {
   return new FeatureCollection::Iterator(this);
@@ -115,9 +115,12 @@ void StegoModel::estimateMus() {
   FeatureCollection::Iterator *citer;
 //   featureSet *stego;
   steg->features = cleanSet;
+//   printf("activating something \n");
   startAction(steg->features);
+//   printf("estimating some mu... \n");
   estimateMu(steg);
-  estimateSigma(steg);
+//   printf("done \n");
+//   estimateSigma(steg);
 //   qrHouseholder(steg);
   endAction(steg->features);
   for (fiter = collections.begin(); fiter != collections.end(); fiter++) {
@@ -166,7 +169,9 @@ void StegoModel::doMMDs() {
   startAction(mc->clean);
   initMMD(steg, *mc);
   estimateGamma(steg, *mc);
-    
+//   mc->stego = mc->clean;
+//   estimateMMD(steg, *mc);
+  
   for (fiter = collections.begin(); fiter != collections.end(); fiter++) {
     if (fiter->second != 0) {
       printf("<%i, %i> \n", fiter->first.first, fiter->first.second);
@@ -176,8 +181,8 @@ void StegoModel::doMMDs() {
 	printf("doing set %g \n", mc->stego->header->prob);
 	startAction(mc->stego);
 	estimateMMD(steg, *mc);
+	mc->stego->mmd = mc->mmd;
 	endAction(mc->stego);
-// 	doMMD(cleanSet, stego); // don't want to call this here, should be more low-level
       }
     }
   }
@@ -251,7 +256,7 @@ void StegoModel::openDirectory(const char* path) {
     entry = readdir(root);
     if (strstr(entry->d_name, ".fv") != NULL) {
       pathConcat(path, entry->d_name, str);
-      openFile(str, i, num_sets);
+      openFile(str, i, num_sets, header);
 //       file = fopen(str, "r");
 //       readHeader(file, &header);
 //       if (ranges == 0) {
@@ -291,14 +296,14 @@ void StegoModel::openDirectory(const char* path) {
   free(str);
 }
 
-void StegoModel::openFile(const char* path, int i, int num_sets) {
+int StegoModel::openFile(const char* path, int i, int num_sets, featureHeader &header) {
   int j, k;
   FILE *file;
-  featureHeader header;
+//   featureHeader header;
   
   if (seenPaths->find(string(path)) != seenPaths->end()) {
 //     printf("Das kenne ich doch schon %s :-@ \n", path);
-    return;
+    return 1;
   }
   
   file = fopen(path, "r");
@@ -333,7 +338,9 @@ void StegoModel::openFile(const char* path, int i, int num_sets) {
   }
   seenPaths->insert(string(path));
   progressChanged((double) i / (double) num_sets);
-  collectionChanged(); // maybe a bit inefficient to run this on every file, might be hundreds
+  
+  return 0;
+//   collectionChanged(); // maybe a bit inefficient to run this on every file, might be hundreds
 }
 
 StegoModel::Iterator::Iterator(StegoModel* m) {
@@ -443,7 +450,7 @@ int StegoModel::getSigmaDim() {
 double* StegoModel::getSigma() {
   if (steg->features == 0) 
     return 0;
-  return steg->features->gauss->qr;
+  return steg->features->gauss->sigma;
 //   if (mc == 0) return 0;
 //   return mc->results;
 }

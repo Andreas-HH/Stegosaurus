@@ -9,6 +9,29 @@
 #include "StegoWidgets.h"
 
 #include <QtGui>
+#include <QtXml>
+
+// const char *slice_types[] = {"P", "B"};
+
+class LoadDialog : public QDialog {
+public:
+  LoadDialog(QWidget *parent = 0, Qt::WindowFlags f = 0);
+  
+  QString getMinMethod();
+  QString getMaxMethod();
+  QString getQPOffset();
+  QString getQPRange();
+  QString getType();
+protected:
+  QComboBox *minMethod;
+  QComboBox *maxMethod;
+  QComboBox *qpOffset;
+  QComboBox *qpRange;
+  QComboBox *type;
+  
+  QPushButton *ok;
+  QPushButton *cancel;
+};
 
 class StegoFrame : public QMainWindow, public StegoView {
   Q_OBJECT
@@ -25,6 +48,7 @@ protected:
   QMenu *fileMenu;
   QMenu *calcMenu;
   QMenu *showMenu;
+  QMenu *docMenu;
   QProgressBar *progress;
   QLabel *statusLabel;
   
@@ -32,14 +56,26 @@ protected:
   PairWidget *pw;
   
   QFileDialog *fdial;
-  QAction *openAction;
+  QAction *openFeaturesAction;
+  QAction *loadFeaturesAction;
   QAction *mmdAction;
   QAction *muAction;
   QAction *showTableAction;
+  QAction *openDocAction;
+  QAction *saveDocAction;
+  
+  QDomDocument *document;
+  QDomElement sets;
+  QDomElement mmds;
+  QFile *xmlFile;
+  LoadDialog *ldial;
 public slots:
   void openCollection();
   void calcMMDs();
   void calcMus();
+  void saveXML();
+  void openXML();
+  void loadFeatures();
 };
 
 #endif /* STEGOFRAME */
