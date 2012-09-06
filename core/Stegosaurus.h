@@ -77,7 +77,7 @@ typedef struct myGaussian {
 
 typedef struct featureHeader {
   int video_bitrate;
-  char pair;   // not necessary
+//   char pair;   // not necessary
   char slice_type;
   char method;
 //   char using_rate;
@@ -91,6 +91,7 @@ typedef struct featureHeader {
 typedef struct featureSet {
   featureHeader *header;
   int dim;
+  int dim_file;
   int hist_dim; // each for single qp
   int pair_dim;
   int uvsv_dim;
@@ -150,14 +151,11 @@ typedef struct mmdContext {
   double *clean_vectors_right_g;
   double *stego_vectors_down_g;
   double *stego_vectors_right_g;
-  // probably one of them is enough
   double *results_c_vs_c_g;
   double *results_c_vs_s_g;
   double *results_s_vs_s_g;
   double *results;
-//   double *clean_vectors;
   double *v_g;
-//   double *v2_g;
   double *temp_g;
   double *vectors_g;
 } mmdContext;
@@ -170,11 +168,9 @@ typedef struct gpuContext {
 } gpuContext;
 
 typedef struct stegoContext {
-  gpuContext *gpu_c;                         // might contain multiple cublas handles later (or multiple gpucontexts, we will see...)
-  featureSet *features;                      // just have an array of handles here?
+  gpuContext *gpu_c;                    // might contain multiple cublas handles later (or multiple gpucontexts, we will see...)
+  featureSet *features;                 // just have an array of handles here?
   long doublesInRAM;
-//   myGaussian *clean_gauss;                   // shared among stegoContexts, only read though! if multiple contexts are loaded at all
-//   myGaussian *stego_gauss;                   // doesn't store inverse or QR.
 } stegoContext;
 
 
@@ -201,12 +197,9 @@ public:
   };
   
   int getNumSets();
-//   int getCurrentSet();
   int addFeatureFile(const char *path, featureHeader *header, stegoContext *steg, featureSet *cleanSet);
   featureSet* getFeatureSet(int index);
-//   featureSet* nextFeatureSet();
   FeatureCollection::Iterator* iterator();
-//   int hasNext();
 protected:
   map < int, featureSet* > collection;
   featureHeader header;
@@ -255,7 +248,7 @@ public:
   int** getRanges();
   StegoModel::Iterator* iterator();
   
-  void collectionChanged();
+  void collectionChanged(); // rebuilds the collection tree in the GUI
 protected:
   int **ranges;                             
   list< StegoView* > views;
@@ -265,19 +258,20 @@ protected:
   featureSet *cleanSet;
   mmdContext *mc;
   void modelChanged();                      // asks all views to update themselves
-  void progressChanged(double p);
+  void progressChanged(double p);           // aks all views to update their progress
 };
 
 
 // void storeGaussian(char *path, myGaussian *gauss);
 int readHeader(FILE *file, featureHeader *header);
-void startAction(featureSet *set);
-void endAction(featureSet *set);
-int closeFeatureSet(featureSet *set);
+void startAction(featureSet *set);  // opens the files of the given featureSet
+void endAction(featureSet *set);    // closes the corresponding files
+int closeFeatureSet(featureSet *set); // frees all resources related to the given featreuSet
 int jumpToVector(featureSet* set, uint64_t vecnum);
 void stegoRewind(featureSet *set);
 void pathConcat(const char* a, const char* b, char *result);
 
+// normalization kernels
 __global__ void initDArrayKernel(double *m, int dim, double val);
 __global__ void finishMax(int dim, double* min, double* max);
 __global__ void compareMax(int dim, double *current_max, double *new_features);
@@ -286,9 +280,11 @@ __global__ void rescaleKernel(int dim, double *vec_g, double *min_g, double *max
 __global__ void varianceKernel(double divM, double *vec_g, double *mu_g, double *var_g, int dim);
 __global__ void normalizeKernel(double* vec_g, double* mu_g, double* var_g, int dim);
 
+// MMD kernels
 __global__ void gammaKernel(int dim, uint64_t cache, int offset, int steps, uint64_t bw_x, uint64_t bw_y, double* down_g, double* right_g, double* results);
 __global__ void mmdKernel(double minus_gamma, double *cvc_g, double *cvs_g, double *svs_g);
 
+// QR factorization kernels
 __global__ void subtract(int dim, double *vec, double *mu);
 __global__ void constructQ(double *q, double *diag, double norm, int count);
 
@@ -316,10 +312,9 @@ extern "C" {
   void estimateGamma(stegoContext* steg, mmdContext& mc);
   void launchGammaKernel(mmdContext& mc, int dim, uint64_t bw_x, uint64_t bw_y, double* down_g, double* right_g, double* results_g);
   void estimateMMD(stegoContext* steg, mmdContext& mc);
-  double applyKernel(stegoContext* steg, double gamma, int dim, double* v1_g, double* v2_g, double* temp_g);
+//   double applyKernel(stegoContext* steg, double gamma, int dim, double* v1_g, double* v2_g, double* temp_g);
   
   int estimateSigma(stegoContext *steg);
-//   void constructQ(double *q, double *diag, double norm, int count);
   klContext* initKLContext(stegoContext* steg);
   void closeKLContext(klContext *klc);
   void applyQ(cublasHandle_t handle, int dim, double *q, double *vec, double *tmp, double *dotp, double *mintwo);

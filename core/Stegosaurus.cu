@@ -144,7 +144,7 @@ void close_gpu(gpuContext* gp) {
 featureSet* openFeatureSet(const char *path, stegoContext *steg) {
 //   printf("opening set \n");
   int i;
-  int dim = 0;
+  int dim = 0, dim_file = 0;
   int hist_dim = 0;
   int pair_dim = 0;
   int uvsv_dim = 0;
@@ -180,6 +180,7 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
 //     for (i = 0; i < 15; i++) dim += 2*header->ranges[2][i]+1;
 //   }
   dim = (int)header->qp_range * (hist_dim + pair_dim + uvsv_dim);
+  dim_file = (int)header->qp_range * (hist_dim + pair_dim + uvsv_dim);
 //   printf("have dim: %i \n", dim);
 //   vec = (double*) malloc(dim*sizeof(double));
   
@@ -188,6 +189,7 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
   set->pair_dim = pair_dim;
   set->uvsv_dim = uvsv_dim;
   set->dim = dim;
+  set->dim_file = dim_file;
   set->files = (FILE**) malloc(MAX_FILES*sizeof(FILE*));//file;
   set->paths = (char**) malloc(MAX_FILES*sizeof(char*));
   set->vsPerFile = (uint64_t*) malloc(MAX_FILES*sizeof(uint64_t));
@@ -203,7 +205,7 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
   set->gauss->qr_diag = NULL;
   set->gauss->dim = dim;
   set->gpu_matrix_width = dim;                      // maybe wish to do something smarter here!
-  CUDA_CALL( cudaHostAlloc(&set->counts, dim*sizeof(store_elem), cudaHostAllocDefault));
+  CUDA_CALL( cudaHostAlloc(&set->counts, dim_file*sizeof(store_elem), cudaHostAllocDefault));
   CUDA_CALL( cudaHostAlloc(&set->vec, dim*sizeof(double), cudaHostAllocDefault));
   CUDA_CALL( cudaHostAlloc(&set->max_vec, dim*sizeof(double), cudaHostAllocDefault));
   CUDA_CALL( cudaHostAlloc(&set->min_vec, dim*sizeof(double), cudaHostAllocDefault));
@@ -222,7 +224,7 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
   initDArray(set->ones_g, dim, tpb, 1.);
   
   M = 0ull;
-  while ((read = fread(set->counts, sizeof(store_elem), dim, file)) == dim) { // && M<10000
+  while ((read = fread(set->counts, sizeof(store_elem), dim_file, file)) == dim_file) { // && M<10000
     M++;
   }
   if (read != 0) {
@@ -254,7 +256,6 @@ int estimateScalingParameters(stegoContext *steg, featureSet *set) {
   uint64_t dim = set->dim;
   uint64_t max_elem = 0ul;
   int tpb = steg->gpu_c->threads_per_block;
-//   int waste = 0;
   
   initDArray(set->max_g, dim, tpb, 0.);
   initDArray(set->min_g, dim, tpb, INFINITY);
@@ -265,17 +266,14 @@ int estimateScalingParameters(stegoContext *steg, featureSet *set) {
     set->mask_vec[j] = 0;
   }
   
-//   printf("estimating scaling parameters over %ld vectors! \n", M);
   for (i = 0ull; i < M; i++) {
     readVectorL1D(steg, set, set->vec_g);
-//     if (i < 10900) {
     for (j = 0ull; j < set->dim; j++) {
       if (set->counts[j] > 0ul)
 	set->mask_counts[j]++;
       if (set->counts[j] > max_elem) 
 	max_elem = set->counts[j];
     }
-//     }
     compareMax<<<BLOCKS(dim,tpb),tpb>>>(dim, set->max_g, set->vec_g);
     compareMin<<<BLOCKS(dim,tpb),tpb>>>(dim, set->min_g, set->vec_g);
     cublasDaxpy(steg->gpu_c->handle, dim, &(set->divM), set->vec_g, 1, set->mu_g, 1);
@@ -304,13 +302,7 @@ int estimateScalingParameters(stegoContext *steg, featureSet *set) {
     }
   }
   CUBLAS_CALL( cublasSetVector(dim, sizeof(double), set->vec, 1, set->var_g, 1));
-//   for (i = 10000ull; i < 10100ull; i++) {
-//     printf("var[%i] = %g \n", i, set->vec[i]);
-//   }
-  
-//   printf("vsPerFile[0] = %d \n", set->vsPerFile[0]);
-//   printf("vsPerFile[1] = %d \n", set->vsPerFile[1]);
-//   printf("vsPerFile[2] = %d \n", set->vsPerFile[2]);
+
   return 0;
 }
 
@@ -329,7 +321,7 @@ int newFeatureFile(stegoContext *steg, featureSet* set, const char* path) {
   readHeader(file, &header);
 //   printf("just read header, found method = %i\n", header.method);
   
-  while ((read = fread(set->counts, sizeof(int), dim, file)) == dim) {// && M<10000
+  while ((read = fread(set->counts, sizeof(int), set->dim_file, file)) == set->dim_file) {// && M<10000
 //     printf("1 vecotr :D, read %i elements \n", read);
     localM++;
   }
@@ -360,24 +352,22 @@ int newFeatureFile(stegoContext *steg, featureSet* set, const char* path) {
 int readCounts(featureSet *set) {
   int i;
   int read = 0;
-//   double *vec_g;
-//   double sum;
   
-  read = fread(set->counts, sizeof(store_elem), set->dim, set->files[set->current_file]);//readCountVector(vec, set->counts, set->dim, set->files[set->current_file]);
+  read = fread(set->counts, sizeof(store_elem), set->dim_file, set->files[set->current_file]);//readCountVector(vec, set->counts, set->dim, set->files[set->current_file]);
   if (read == 0) {
     fseek(set->files[set->current_file], set->dataOffset, SEEK_SET);
     set->current_file++;
     if (set->current_file == set->num_files)
       return -1;
     fseek(set->files[set->current_file], set->dataOffset, SEEK_SET);
-//     printf("swapping files to num %i \n", set->current_file);
     return readCounts(set);
-  } else if (read != set->dim) {
+  } else if (read != set->dim_file) {
     return -1;
   }
   
   for (i = 0; i < set->dim; i++) {
     set->vec[i] = (double) set->counts[i];
+    if (set->vec[i] < 0.) printf(";_; \n");
   }
   
   return read;
@@ -419,7 +409,7 @@ int readVectorL1D(stegoContext *steg, featureSet *set, double *vec_g) {
   read = readCounts(set);
   scaleL1D(steg, set->dim, set->vec, vec_g, set->ones_g);
   
-  if (read != set->dim) printf("read something wrong! \n");
+  if (read != set->dim_file) printf("read something wrong! %i, %i \n", set->dim_file, read);
   return read;
 }
 
@@ -441,7 +431,6 @@ int readVectorNormalized(stegoContext *steg, featureSet *set, double *vec_g) {
   return read;
 }
 
-// should write my own kernels and get rid of the ones_g
 void scaleL1D(stegoContext *steg, int dim, double *vec, double *vec_g, double *ones_g) {
   double norm;
   

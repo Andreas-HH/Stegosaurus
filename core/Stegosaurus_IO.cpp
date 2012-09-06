@@ -55,7 +55,7 @@ int jumpToVector(featureSet *set, uint64_t vecnum) {
   seenvs -= set->vsPerFile[--i];
   set->current_file = i;
 //   printf("found pos. %d in file %i \n", vecnum-seenvs, set->current_file);
-  fseek(set->files[set->current_file], set->dataOffset + (long) ((vecnum-seenvs)*set->dim*sizeof(store_elem)), SEEK_SET);
+  fseek(set->files[set->current_file], set->dataOffset + (long) ((vecnum-seenvs)*set->dim_file*sizeof(store_elem)), SEEK_SET);
 
   return 0;
 }

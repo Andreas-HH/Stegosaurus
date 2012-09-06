@@ -169,6 +169,7 @@ void StegoModel::doMMDs() {
   startAction(mc->clean);
   initMMD(steg, *mc);
   estimateGamma(steg, *mc);
+  
 //   mc->stego = mc->clean;
 //   estimateMMD(steg, *mc);
   
