@@ -264,6 +264,7 @@ void StegoFrame::loadFeatures() {
 	    currentSet.attribute(QString("qp_range")) == ldial->getQPRange() &&
 	    currentSet.attribute(QString("type")) == ldial->getType()) {
 	for (currentFile = currentSet.firstChildElement(QString("file")); !currentFile.isNull(); currentFile = currentFile.nextSiblingElement(QString("file"))) {
+	  printf("Loading something: %s \n", currentFile.text().toStdString().c_str());
 	  model->openFile(currentFile.text().toStdString().c_str(), 0, 1, header);
 	}
       }

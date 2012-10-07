@@ -181,7 +181,7 @@ featureSet* openFeatureSet(const char *path, stegoContext *steg) {
 //   }
   dim = (int)header->qp_range * (hist_dim + pair_dim + uvsv_dim);
   dim_file = (int)header->qp_range * (hist_dim + pair_dim + uvsv_dim);
-//   printf("have dim: %i \n", dim);
+//   printf("have dim: %i, %i, %i \n", hist_dim, pair_dim, uvsv_dim);
 //   vec = (double*) malloc(dim*sizeof(double));
   
   set->header = header;
