@@ -3,6 +3,7 @@
 
 #include <Stegosaurus.h>
 #include <QtGui>
+#include <cmath>
 
 
 // const int hist_blocktype_ranges[] = {152, 48, 34}; // Luma, Chroma DC, Chroma AC

@@ -249,7 +249,7 @@ void PairWidget::paintHistogramBox(QPainter *painter, double *v, int &x, int &y)
   for (i = 0; i < 16; i++) {
     for (j = 0; j < ranges[0][i]; j++) {
       delta = (ranges[0][0] - ranges[0][i])/2;
-      painter->setOpacity(sqrt(((double) qMin<int>(barHeight, abs(scale*v[count++])))/((double) barHeight)));
+      painter->setOpacity(sqrt(((double) qMin<int>(barHeight, std::abs(scale*v[count++])))/((double) barHeight)));
       painter->drawPoint(x + j + delta, y + i);
     }
   }
@@ -269,7 +269,7 @@ void PairWidget::paintHistogramBox(QPainter *painter, double *v, int &x, int &y)
   for (i = 0; i < 15; i++) {
     for (j = 0; j < ranges[2][i]; j++) {
       delta = (ranges[2][0] - ranges[2][i])/2;
-      painter->setOpacity(sqrt(((double) qMin<int>(barHeight, abs(scale*v[count++])))/((double) barHeight)));
+      painter->setOpacity(sqrt(((double) qMin<int>(barHeight, std::abs(scale*v[count++])))/((double) barHeight)));
       painter->drawPoint(x + j + delta, y + i);
     }
   }
@@ -283,7 +283,7 @@ int PairWidget::paintSquares(QPainter *painter, double *v, int &x, int &y, int w
   
   for (i = 0; i < h; i++) {
     for (j = 0; j < w; j++) {
-      painter->setOpacity(sqrt(((double) qMin<int>(barHeight, abs(scale*v[count++])))/((double) barHeight)));
+      painter->setOpacity(sqrt(((double) qMin<int>(barHeight, std::abs(scale*v[count++])))/((double) barHeight)));
       painter->drawPoint(x+j, y+h-1-i);
     }
   }
