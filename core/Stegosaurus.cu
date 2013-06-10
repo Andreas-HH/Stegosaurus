@@ -1,5 +1,5 @@
 #include "Stegosaurus.h"
-
+#include "StegoClassifier.h"
 
 __global__ void initDArrayKernel(double *m, int dim, double val) {
   int idx = threadIdx.x + blockIdx.x*blockDim.x;
@@ -321,7 +321,7 @@ int newFeatureFile(stegoContext *steg, featureSet* set, const char* path) {
   readHeader(file, &header);
 //   printf("just read header, found method = %i\n", header.method);
   
-  while ((read = fread(set->counts, sizeof(int), set->dim_file, file)) == set->dim_file) {// && M<10000
+  while ((read = fread(set->counts, sizeof(store_elem), set->dim_file, file)) == set->dim_file) {// && M<10000
 //     printf("1 vecotr :D, read %i elements \n", read);
     localM++;
   }
@@ -624,12 +624,12 @@ void StegoModel::doMMDs() {
       printf("<%i, %i> \n", fiter->first.first, fiter->first.second);
       citer = fiter->second->iterator();
       while (citer->hasNext()) {
-	mc->stego = citer->next();
-	printf("doing set %g \n", mc->stego->header->prob);
-	startAction(mc->stego);
-	estimateMMD(steg, *mc);
-	mc->stego->mmd = mc->mmd;
-	endAction(mc->stego);
+        mc->stego = citer->next();
+        printf("doing set %g \n", mc->stego->header->prob);
+        startAction(mc->stego);
+        estimateMMD(steg, *mc);
+        mc->stego->mmd = mc->mmd;
+        endAction(mc->stego);
       }
     }
   }
@@ -637,6 +637,22 @@ void StegoModel::doMMDs() {
   closeMMD(*mc);
 }
 
+void StegoModel::runClassifier() {
+  int dim = cleanSet->dim;
+  std::cout << "dim = " << dim << std::endl;
+  int read;
+  double *vec_g, vec[dim];
+  StegoClassifier sf(dim);
+  
+  CUDA_CALL( cudaMalloc(&vec_g, dim*sizeof(double)));
+  startAction(cleanSet);
+  for (int n = 0; n < cleanSet->M; n++) { // use while loop?
+    readVectorRescaled(steg, cleanSet, vec_g);
+    CUDA_CALL( cudaMemcpy(vec, vec_g, dim*sizeof(double), cudaMemcpyDefault));
+    sf.addCleanVector(vec);
+  }
+  endAction(cleanSet);
+}
 
 void StegoModel::setFeatures(featureSet* set) {
   steg->features = set;

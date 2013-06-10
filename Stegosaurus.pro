@@ -4,12 +4,10 @@
 
 QMAKE_LINK = nvcc
 QMAKE_LFLAGS = -arch=sm_30 -prec-div=true -prec-sqrt=true
-QMAKE_LFLAGS = 
 QMAKE_LFLAGS_RPATH = 
 QMAKE_LFLAGS_RELEASE = 
 QMAKE_CC = nvcc
 QMAKE_CFLAGS = -arch=sm_30 -prec-div=true -prec-sqrt=true
-QMAKE_CFLAGS = 
 QMAKE_CFLAGS_WARN_ON = 
 QMAKE_CXX = nvcc
 QMAKE_CXXFLAGS = -arch=sm_30 -prec-div=true -prec-sqrt=true
@@ -17,12 +15,13 @@ QMAKE_CXXFLAGS_WARN_ON =
 
 TEMPLATE = app
 TARGET = 
-LIBS += -lcublas
+LIBS += -lcublas -lshark -lboost_serialization
 DEPENDPATH += . core gui
 INCLUDEPATH += . core gui
 
 # Input
 HEADERS += core/Stegosaurus.h \
+           core/StegoClassifier.h \
            gui/ConfigDock.h \
            gui/FeatureDock.h \
            gui/GraphDock.h \
@@ -33,6 +32,7 @@ SOURCES += core/Stegosaurus_IO.cpp \
            core/Stegosaurus.cu \
            core/Stegosaurus_KL.cu \
            core/Stegosaurus_MMD.cu \
+           core/StegoClassifier.cpp \
            gui/ConfigDock.cpp \
            gui/FeatureDock.cpp \
            gui/GraphDock.cpp \

@@ -191,7 +191,6 @@ void StegoModel::doMMDs() {
   closeMMD(*mc);
 }
 
-
 void StegoModel::setFeatures(featureSet* set) {
   steg->features = set;
   modelChanged();

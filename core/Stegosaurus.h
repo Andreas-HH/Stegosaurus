@@ -224,10 +224,12 @@ public:
     pair< int, int > x;
     map< pair< int, int >, FeatureCollection* >::iterator iter;
   };
+  
+  void runClassifier();
  
   void addView(StegoView *view);
   void openDirectory(const char *path);
-    int openFile(const char* path, int i, int num_sets, featureHeader& header);
+  int openFile(const char* path, int i, int num_sets, featureHeader& header);
   void estimateMus();
   void doMMDs();
   double doMMD(featureSet* clean, featureSet* stego);

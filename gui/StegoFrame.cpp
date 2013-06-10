@@ -122,6 +122,7 @@ StegoFrame::StegoFrame(QWidget* parent) : QMainWindow(parent) {
   openDocAction = new QAction(tr("Open"), this);
   saveDocAction = new QAction(tr("Save"), this);
   mmdAction  = new QAction(tr("MMDs"), this);
+  svmAction  = new QAction(tr("SVM classification"), this);
   muAction   = new QAction(tr("Mus"), this);
   
   fdial = new QFileDialog(this);
@@ -139,6 +140,7 @@ StegoFrame::StegoFrame(QWidget* parent) : QMainWindow(parent) {
   docMenu->addAction(saveDocAction);
   calcMenu->addAction(muAction);
   calcMenu->addAction(mmdAction);
+  calcMenu->addAction(svmAction);
   
   progress = new QProgressBar(statusBar());
   statusLabel = new QLabel(tr("Ready."));
@@ -149,6 +151,7 @@ StegoFrame::StegoFrame(QWidget* parent) : QMainWindow(parent) {
   connect(loadFeaturesAction, SIGNAL(triggered(bool)), ldial, SLOT(open()));
   connect(saveDocAction, SIGNAL(triggered(bool)), this, SLOT(saveXML()));
   connect(mmdAction, SIGNAL(triggered(bool)), this, SLOT(calcMMDs()));
+  connect(svmAction, SIGNAL(triggered(bool)), this, SLOT(classify()));
   connect(muAction, SIGNAL(triggered(bool)), this, SLOT(calcMus()));
   connect(ldial, SIGNAL(accepted()), this, SLOT(loadFeatures()));
   
@@ -191,39 +194,39 @@ void StegoFrame::openCollection() {
     fileNames = fdial->selectedFiles();
     for (i = 0; i < fileNames.size(); i++) {
       if (model->openFile(fileNames.at(i).toStdString().c_str(), i+1, fileNames.size(), header) == 0) {
-	for (currentSet = sets.firstChildElement(QString("featureSet")); !currentSet.isNull(); currentSet = currentSet.nextSiblingElement(QString("featureSet"))) {
-// 	  printf("checking method %i \n", currentSet.attribute(tr("method")).toInt());
-	  if (currentSet.attribute(tr("method")).toInt() == (int) header.method &&
-	        currentSet.attribute(tr("qp_range")).toInt() == (int) header.qp_range &&
-	        currentSet.attribute(tr("qp_offset")).toInt() == (int) header.qp_offset &&
-	        currentSet.attribute(tr("type")) == slice_types[(int)header.slice_type]) {
-// 	    printf("found some set in document \n");
-	    break;
-	  }
-	}
-	if (currentSet.isNull()) { // need to insert new featureSet
-          currentSet = document->createElement(QString("featureSet"));
-	  currentSet.setAttribute(QString("method"), QString("%1").arg((int)header.method));
-	  currentSet.setAttribute(QString("type"), QString(slice_types[(int)header.slice_type]));
-// 	  currentSet.setAttribute(QString("dimension"), QString("%1").arg((int)header.dim));
-	  currentSet.setAttribute(QString("qp_offset"), QString("%1").arg((int)header.qp_offset));
-	  currentSet.setAttribute(QString("qp_range"), QString("%1").arg((int)header.qp_range));
-	  sets.appendChild(currentSet);
-// 	  currentSet = currentSet;
-	}
-	for (currentFile = currentSet.firstChildElement(QString("file")); !currentFile.isNull(); currentFile = currentFile.nextSiblingElement(QString("file"))) {
-// 	  printf("currently looking at: %s \n", currentFile.text().toStdString().c_str());
-	  if (currentFile.text().compare(fileNames.at(i)) == 0)
-	    break;
-	  // compare here to avoid duplicates
-	}
-	if (currentFile.isNull()) {
-// 	  printf("NOT FOUND! (%s) \n", fileNames.at(i).toStdString().c_str());
-	  currentFile = document->createElement(QString("file"));
-	  text = document->createTextNode(fileNames.at(i));
-	  currentFile.appendChild(text);
-	  currentSet.appendChild(currentFile);
-	}
+        for (currentSet = sets.firstChildElement(QString("featureSet")); !currentSet.isNull(); currentSet = currentSet.nextSiblingElement(QString("featureSet"))) {
+    // 	  printf("checking method %i \n", currentSet.attribute(tr("method")).toInt());
+          if (currentSet.attribute(tr("method")).toInt() == (int) header.method &&
+                currentSet.attribute(tr("qp_range")).toInt() == (int) header.qp_range &&
+                currentSet.attribute(tr("qp_offset")).toInt() == (int) header.qp_offset &&
+                currentSet.attribute(tr("type")) == slice_types[(int)header.slice_type]) {
+    // 	    printf("found some set in document \n");
+            break;
+          }
+        }
+        if (currentSet.isNull()) { // need to insert new featureSet
+              currentSet = document->createElement(QString("featureSet"));
+          currentSet.setAttribute(QString("method"), QString("%1").arg((int)header.method));
+          currentSet.setAttribute(QString("type"), QString(slice_types[(int)header.slice_type]));
+    // 	  currentSet.setAttribute(QString("dimension"), QString("%1").arg((int)header.dim));
+          currentSet.setAttribute(QString("qp_offset"), QString("%1").arg((int)header.qp_offset));
+          currentSet.setAttribute(QString("qp_range"), QString("%1").arg((int)header.qp_range));
+          sets.appendChild(currentSet);
+    // 	  currentSet = currentSet;
+        }
+        for (currentFile = currentSet.firstChildElement(QString("file")); !currentFile.isNull(); currentFile = currentFile.nextSiblingElement(QString("file"))) {
+    // 	  printf("currently looking at: %s \n", currentFile.text().toStdString().c_str());
+          if (currentFile.text().compare(fileNames.at(i)) == 0)
+            break;
+          // compare here to avoid duplicates
+        }
+        if (currentFile.isNull()) {
+    // 	  printf("NOT FOUND! (%s) \n", fileNames.at(i).toStdString().c_str());
+          currentFile = document->createElement(QString("file"));
+          text = document->createTextNode(fileNames.at(i));
+          currentFile.appendChild(text);
+          currentSet.appendChild(currentFile);
+        }
       }
     }
   }
@@ -256,19 +259,27 @@ void StegoFrame::loadFeatures() {
   int minMethod = ldial->getMinMethod().toInt();
   int maxMethod = ldial->getMaxMethod().toInt();
   int currentMethod;
+  QList<QString> fileList;
+  QString f;
   
   for (currentSet = sets.firstChildElement(QString("featureSet")); !currentSet.isNull(); currentSet = currentSet.nextSiblingElement(QString("featureSet"))) {
     currentMethod = currentSet.attribute(QString("method")).toInt();
     if (currentMethod == 0 || (currentMethod >= minMethod && currentMethod <= maxMethod)) {
       if (currentSet.attribute(QString("qp_offset")) == ldial->getQPOffset() && 
-	    currentSet.attribute(QString("qp_range")) == ldial->getQPRange() &&
-	    currentSet.attribute(QString("type")) == ldial->getType()) {
-	for (currentFile = currentSet.firstChildElement(QString("file")); !currentFile.isNull(); currentFile = currentFile.nextSiblingElement(QString("file"))) {
-	  printf("Loading something: %s \n", currentFile.text().toStdString().c_str());
-	  model->openFile(currentFile.text().toStdString().c_str(), 0, 1, header);
-	}
+          currentSet.attribute(QString("qp_range")) == ldial->getQPRange() &&
+          currentSet.attribute(QString("type")) == ldial->getType()) {
+        for (currentFile = currentSet.firstChildElement(QString("file")); !currentFile.isNull(); currentFile = currentFile.nextSiblingElement(QString("file"))) {
+//           printf("Loading something: %s \n", currentFile.text().toStdString().c_str());
+          fileList.append(currentFile.text());
+//           model->openFile(currentFile.text().toStdString().c_str(), 0, 1, header);
+        }
       }
     }
+  }
+  qSort(fileList);
+  foreach (f, fileList) {
+    printf("Loading something: %s \n", f.toStdString().c_str());
+    model->openFile(f.toStdString().c_str(), 0, 1, header);
   }
   model->collectionChanged();
 }
@@ -282,6 +293,9 @@ void StegoFrame::calcMus() {
   model->estimateMus();
 }
 
+void StegoFrame::classify() {
+  model->runClassifier();
+}
 
 void StegoFrame::updateProgress(double p) {
 //   printf("updating progress %f \n", p);

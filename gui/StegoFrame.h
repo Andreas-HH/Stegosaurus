@@ -2,6 +2,7 @@
 #define STEGOFRAME
 
 #include <Stegosaurus.h>
+// #include <StegoClassifier.h>
 #include "FeatureDock.h"
 #include "ConfigDock.h"
 #include "GraphDock.h"
@@ -59,6 +60,7 @@ protected:
   QAction *openFeaturesAction;
   QAction *loadFeaturesAction;
   QAction *mmdAction;
+  QAction *svmAction;
   QAction *muAction;
   QAction *showTableAction;
   QAction *openDocAction;
@@ -75,6 +77,7 @@ public slots:
   void calcMus();
   void saveXML();
   void openXML();
+  void classify();
   void loadFeatures();
 };
 

@@ -156,10 +156,10 @@ void estimateMMD(stegoContext *steg, mmdContext& mc) {
       cudaThreadSynchronize();
       CUBLAS_CALL( cublasGetVector(SQUARE(mc.cache), sizeof(double), mc.results_c_vs_c_g, 1, mc.results, 1));
       for (i = 0ull; i < bw_x; i++) {
-	for (j = 0ull; j < bw_y; j++) {
-	  if (pos_x + i == pos_y + j) continue;
-          mmd += mc.results[j + i*mc.cache];
-	}
+        for (j = 0ull; j < bw_y; j++) {
+          if (pos_x + i == pos_y + j) continue;
+              mmd += mc.results[j + i*mc.cache];
+        }
       }
     }
   }
