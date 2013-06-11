@@ -246,7 +246,7 @@ public:
   double* getMuVector();                     // can be a particular feature vector or mu
   double* getQPHist();
   double* getSigma();
-  double *getDiag();
+  double* getDiag();
   int** getRanges();
   StegoModel::Iterator* iterator();
   

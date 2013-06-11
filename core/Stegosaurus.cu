@@ -507,7 +507,18 @@ int FeatureCollection::getNumSets() {
 }
 
 featureSet* FeatureCollection::getFeatureSet(int index) {
-  return 0;
+  int i = 0;
+  featureSet *set = NULL;
+  map<int, featureSet*>::iterator iter;
+  
+  for (iter = collection.begin(); iter != collection.end(); iter++) {
+    if (i++ == index) {
+      set = iter->second;
+      break;
+    }
+  }
+  
+  return set;
 }
 
 // int FeatureCollection::hasNext() {
@@ -639,19 +650,51 @@ void StegoModel::doMMDs() {
 
 void StegoModel::runClassifier() {
   int dim = cleanSet->dim;
-  std::cout << "dim = " << dim << std::endl;
+  cout << "dim = " << dim << endl;
   int read;
+  int samples = 1000; // cleanSet->M
+  double gamma;
   double *vec_g, vec[dim];
   StegoClassifier sf(dim);
+  featureSet *stegoSet;
+  FeatureCollection *col;
   
   CUDA_CALL( cudaMalloc(&vec_g, dim*sizeof(double)));
   startAction(cleanSet);
-  for (int n = 0; n < cleanSet->M; n++) { // use while loop?
+//   for (int n = 0; n < samples; n++) {
+//     readVectorRescaled(steg, cleanSet, vec_g);
+//     CUDA_CALL( cudaMemcpy(vec, vec_g, dim*sizeof(double), cudaMemcpyDefault));
+//     sf.addCleanVector(vec);
+//   }
+//   endAction(cleanSet);
+  
+  // one should iterate properly here
+  col = collections.at(pair<int, int>(1, 1));
+  cout << "col has " << col->getNumSets() << " sets\n";
+  stegoSet = col->getFeatureSet(col->getNumSets()-1);
+  startAction(stegoSet);
+  for (int n = 0; n < samples; n++) {
     readVectorRescaled(steg, cleanSet, vec_g);
     CUDA_CALL( cudaMemcpy(vec, vec_g, dim*sizeof(double), cudaMemcpyDefault));
-    sf.addCleanVector(vec);
+    sf.addCleanVector(vec);  
+    readVectorRescaled(steg, stegoSet, vec_g);
+    CUDA_CALL( cudaMemcpy(vec, vec_g, dim*sizeof(double), cudaMemcpyDefault));
+    sf.addStegoVector(vec);
   }
+  endAction(stegoSet);
   endAction(cleanSet);
+  
+//   cout << "estimating gamma\n";
+//   mc = (mmdContext*) malloc(sizeof(mmdContext));
+//   mc->clean = cleanSet;
+//   startAction(mc->clean);
+//   initMMD(steg, *mc);
+//   estimateGamma(steg, *mc);
+//   gamma = mc->gamma;
+//   endAction(cleanSet);
+//   free(mc);
+  
+  sf.runSVM(0.438101);
 }
 
 void StegoModel::setFeatures(featureSet* set) {

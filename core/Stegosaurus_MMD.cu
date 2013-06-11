@@ -98,11 +98,11 @@ void estimateGamma(stegoContext *steg, mmdContext& mc) {
       CUDA_CALL( cudaMemcpy(mc.results, mc.results_c_vs_c_g, SQUARE(mc.cache)*sizeof(double), cudaMemcpyDeviceToHost));
       cudaThreadSynchronize();
       for (i = 0ull; i < bw_x; i++) {
-	for (j = 0ull; j < bw_y; j++) {
-          if (pos_x + i < pos_y + j)  {
-	    q.push(mc.results[j + i*mc.cache]);
-	  }
-	}
+        for (j = 0ull; j < bw_y; j++) {
+              if (pos_x + i < pos_y + j)  {
+            q.push(mc.results[j + i*mc.cache]);
+          }
+        }
       }
     }
   }
